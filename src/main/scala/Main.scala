@@ -8,6 +8,6 @@ object Main extends App {
 		}
 		val lines = Source.fromFile(args(0)).mkString.split("\n")
 		val tokens = Lexer(lines)
-		tokens.foreach(t => println(t))
+		tokens.foreach(println)
 	}
 }

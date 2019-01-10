@@ -1,4 +1,3 @@
-import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 
 object TokenType extends Enumeration {
@@ -10,12 +9,13 @@ case class Token(tok: TokenType.Value, text: String, line: Int) {
 }
 
 object Lexer {
-	private val keywords = HashSet("else", "if", "return", "while")
-	private val punctuation = HashSet("{", "}", "(", ")", ";")
-	private val types = HashSet("int", "void")
+	private val keywords = Seq("else", "if", "return", "while")
+	private val operators = Seq("==", "!=", "!", "=", ">", "<")
+	private val punctuation = Seq("{", "}", "(", ")", ";")
+	private val types = Seq("int", "void")
 
 	private val parseRegex = ("^(" + keywords.reduce((a, v) => a + "|" + v) + "|" + types.reduce((a, v) => a + "|" + v) + "|" + punctuation.reduce((a, v) => a + "\\" + v) + "|\\w+|//|/\\*)(.*)$").r
-	private val commentRegex = "(\\*/|\\*/)(.*)$".r
+	private val commentRegex = ".*(\\*/|/\\*)(.*)$".r
 
 	def apply(lines: Seq[String]): Seq[Token] = {
 		println(parseRegex)

@@ -255,7 +255,7 @@ object Lexer {
 						// TODO: make this skip to the next identifier instead of using this hack
 
 						// This is a syntax error. Add the error to the string if the last token was not an error.
-						if (arr(arr.length - 1).tok != TokenType.ERROR) {
+						if (arr(arr.length - 1).line == i + 1 && arr(arr.length - 1).tok != TokenType.ERROR) {
 							arr += Token(TokenType.ERROR, sb, i + 1)
 						}
 						// Remove one character from the front of the string.

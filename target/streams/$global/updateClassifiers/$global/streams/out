@@ -5,7 +5,7 @@
 [debug] resolving dependencies for configuration 'compile'
 [debug] == resolving dependencies for default#cminus$sources;0.1 [compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->default]
-[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-library;2.12.8 {compile=[default, compile, runtime, default(compile), master], runtime=[default, compile, runtime, default(compile), master], test=[default, compile, runtime, default(compile), master], compile-internal=[default, compile, runtime, default(compile), master], runtime-internal=[default, compile, runtime, default(compile), master], test-internal=[default, compile, runtime, default(compile), master], scala-tool=[default, master(*), compile, runtime(*), master(compile), runtime, optional, optional(default), compile(*), master]}
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-library;2.12.8 {compile=[default, compile, runtime, default(compile), master], runtime=[default, compile, runtime, default(compile), master], test=[default, master(*), compile, runtime(*), master(compile), runtime, default(compile), compile(*), master], compile-internal=[default, compile, runtime, default(compile), master], runtime-internal=[default, compile, runtime, default(compile), master], test-internal=[default, master(*), compile, runtime(*), master(compile), runtime, default(compile), compile(*), master], scala-tool=[default, master(*), compile, runtime(*), master(compile), runtime, optional, optional(default), compile(*), master]}
 [debug] sbt-chain: module revision found in cache: org.scala-lang#scala-library;2.12.8
 [debug] 	found org.scala-lang#scala-library;2.12.8 in sbt-chain
 [debug] 	[2.12.8] org.scala-lang#scala-library;2.12.8
@@ -63,6 +63,11 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->master(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [compile->compile(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->default]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->compile]
@@ -75,18 +80,72 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->default]
+[debug] sbt-chain: Checking cache for: dependency: org.scalatest#scalatest_2.12;3.0.5 {test=[default, compile, runtime, default(compile), master], test-internal=[default, compile, runtime, default(compile), master]}
+[debug] sbt-chain: module revision found in cache: org.scalatest#scalatest_2.12;3.0.5
+[debug] 	found org.scalatest#scalatest_2.12;3.0.5 in sbt-chain
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->default(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->default]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->default(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] sbt-chain: Checking cache for: dependency: org.scalactic#scalactic_2.12;3.0.5 {test=[compile, runtime(*), master(compile), runtime, compile(*), master], test-internal=[compile, runtime(*), master(compile), runtime, compile(*), master]}
+[debug] sbt-chain: module revision found in cache: org.scalactic#scalactic_2.12;3.0.5
+[debug] 	found org.scalactic#scalactic_2.12;3.0.5 in sbt-chain
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang.modules#scala-xml_2.12;1.0.6 {test=[compile, runtime(*), master(compile), runtime, compile(*), master], test-internal=[compile, runtime(*), master(compile), runtime, compile(*), master], scala-tool=[compile, runtime(*), master(compile), runtime, compile(*), master]}
+[debug] sbt-chain: module revision found in cache: org.scala-lang.modules#scala-xml_2.12;1.0.6
+[debug] 	found org.scala-lang.modules#scala-xml_2.12;1.0.6 in sbt-chain
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-reflect;2.12.8 {test=[compile, runtime(*), master(compile), runtime, compile(*), master], test-internal=[compile, runtime(*), master(compile), runtime, compile(*), master], scala-tool=[compile, runtime(*), master(compile), runtime, compile(*), master]}
+[debug] sbt-chain: module revision found in cache: org.scala-lang#scala-reflect;2.12.8
+[debug] 	found org.scala-lang#scala-reflect;2.12.8 in sbt-chain
+[debug] 	[2.12.8] org.scala-lang#scala-reflect;2.12.8
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->master]
 [debug] resolving dependencies for configuration 'provided'
 [debug] == resolving dependencies for default#cminus$sources;0.1 [provided]
 [debug] resolving dependencies for configuration 'optional'
@@ -190,32 +249,114 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [runtime->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->default]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->default(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->default]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->default(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->compile(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test->master]
 [debug] == resolving dependencies for default#cminus$sources;0.1 [optional]
 [debug] == resolving dependencies for default#cminus$sources;0.1 [provided]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->default]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->default(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalatest#scalatest_2.12;3.0.5 [test-internal->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->default]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->master(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->master(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->default(compile)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->runtime]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->compile(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scalactic#scalactic_2.12;3.0.5 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [test-internal->master]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->runtime(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->master(compile)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->runtime]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->compile]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->compile(*)]
+[debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [test-internal->master]
 [debug] resolving dependencies for configuration 'plugin'
 [debug] == resolving dependencies for default#cminus$sources;0.1 [plugin]
 [debug] resolving dependencies for configuration 'pom'
@@ -238,9 +379,6 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [scala-tool->compile(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-library;2.12.8 [scala-tool->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [scala-tool->compile]
-[debug] sbt-chain: Checking cache for: dependency: org.scala-lang.modules#scala-xml_2.12;1.0.6 {scala-tool=[compile, runtime(*), master(compile), runtime, compile(*), master]}
-[debug] sbt-chain: module revision found in cache: org.scala-lang.modules#scala-xml_2.12;1.0.6
-[debug] 	found org.scala-lang.modules#scala-xml_2.12;1.0.6 in sbt-chain
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [scala-tool->runtime(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [scala-tool->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang.modules#scala-xml_2.12;1.0.6 [scala-tool->master(compile)]
@@ -262,10 +400,6 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-compiler;2.12.8 [scala-tool->optional(default)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-compiler;2.12.8 [scala-tool->master]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [scala-tool->compile]
-[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-reflect;2.12.8 {scala-tool=[compile, runtime(*), master(compile), runtime, compile(*), master]}
-[debug] sbt-chain: module revision found in cache: org.scala-lang#scala-reflect;2.12.8
-[debug] 	found org.scala-lang#scala-reflect;2.12.8 in sbt-chain
-[debug] 	[2.12.8] org.scala-lang#scala-reflect;2.12.8
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [scala-tool->runtime(*)]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [scala-tool->compile]
 [debug] == resolving dependencies default#cminus$sources;0.1->org.scala-lang#scala-reflect;2.12.8 [scala-tool->master(compile)]
@@ -282,42 +416,26 @@
 [debug] == resolving dependencies default#cminus$sources;0.1->jline#jline;2.14.6 [scala-tool->master]
 [debug] 	resolved ivy file produced in cache
 [debug] :: downloading artifacts ::
-[debug] 		tried /home/jonathan/.ivy2/local/org.scala-lang.modules/scala-xml_2.12/1.0.6/srcs/scala-xml_2.12-sources.jar
-[debug] 		tried /home/jonathan/.ivy2/local/jline/jline/2.14.6/srcs/jline-sources.jar
-[debug] 		tried /home/jonathan/.ivy2/local/org.scala-lang/scala-reflect/2.12.8/srcs/scala-reflect-sources.jar
-[debug] 		tried https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar
-[debug] 		tried /home/jonathan/.ivy2/local/org.scala-lang/scala-compiler/2.12.8/srcs/scala-compiler-sources.jar
-[debug] 		tried https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar
-[debug] 		tried https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.8/scala-compiler-2.12.8-sources.jar
-[debug] 		tried /home/jonathan/.ivy2/local/org.scala-lang/scala-library/2.12.8/srcs/scala-library-sources.jar
-[debug] 		tried https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar
-[debug] 		tried https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar
-[info] downloading https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.8/scala-compiler-2.12.8-sources.jar ...
-[info] downloading https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar ...
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.8/scala-compiler-2.12.8-sources.jar
-[info] downloading https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar ...
-[debug] 	public: downloading https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar
-[info] downloading https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar ...
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar.sha1
-[debug] sha1 OK for https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar
-[info] 	[SUCCESSFUL ] org.scala-lang.modules#scala-xml_2.12;1.0.6!scala-xml_2.12.jar(src) (1104ms)
-[info] downloading https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar ...
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar
-[debug] 	public: downloading https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar.sha1
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar.sha1
-[debug] sha1 OK for https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar
-[info] 	[SUCCESSFUL ] jline#jline;2.14.6!jline.jar(src) (3973ms)
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar.sha1
-[debug] sha1 OK for https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar
-[info] 	[SUCCESSFUL ] org.scala-lang#scala-reflect;2.12.8!scala-reflect.jar(src) (4267ms)
-[debug] sha1 OK for https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar
-[info] 	[SUCCESSFUL ] org.scala-lang#scala-library;2.12.8!scala-library.jar(src) (4378ms)
-[debug] 	public: downloading https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.8/scala-compiler-2.12.8-sources.jar.sha1
-[debug] sha1 OK for https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.8/scala-compiler-2.12.8-sources.jar
-[info] 	[SUCCESSFUL ] org.scala-lang#scala-compiler;2.12.8!scala-compiler.jar(src) (5976ms)
-[debug] :: resolution report :: resolve 45ms :: artifacts dl 5983ms
+[debug] 		tried /home/jonathan/.ivy2/local/org.scalactic/scalactic_2.12/3.0.5/srcs/scalactic_2.12-sources.jar
+[debug] 		tried https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar
+[debug] 		tried /home/jonathan/.ivy2/local/org.scalatest/scalatest_2.12/3.0.5/srcs/scalatest_2.12-sources.jar
+[debug] 		tried https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar
+[debug] 	[NOT REQUIRED] org.scala-lang#scala-library;2.12.8!scala-library.jar(src)
+[debug] 	[NOT REQUIRED] org.scala-lang#scala-reflect;2.12.8!scala-reflect.jar(src)
+[debug] 	[NOT REQUIRED] org.scala-lang#scala-compiler;2.12.8!scala-compiler.jar(src)
+[debug] 	[NOT REQUIRED] org.scala-lang.modules#scala-xml_2.12;1.0.6!scala-xml_2.12.jar(src)
+[debug] 	[NOT REQUIRED] jline#jline;2.14.6!jline.jar(src)
+[info] downloading https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar ...
+[debug] 	public: downloading https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar
+[info] downloading https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar ...
+[debug] 	public: downloading https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar
+[debug] 	public: downloading https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar.sha1
+[debug] sha1 OK for https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar
+[info] 	[SUCCESSFUL ] org.scalactic#scalactic_2.12;3.0.5!scalactic_2.12.jar(src) (1137ms)
+[debug] 	public: downloading https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar.sha1
+[debug] sha1 OK for https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar
+[info] 	[SUCCESSFUL ] org.scalatest#scalatest_2.12;3.0.5!scalatest_2.12.jar(src) (6422ms)
+[debug] :: resolution report :: resolve 210ms :: artifacts dl 6429ms
 [debug] 	report for default#cminus$sources;0.1 compile produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-compile.xml
 [debug] 	report for default#cminus$sources;0.1 runtime produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-runtime.xml
 [debug] 	report for default#cminus$sources;0.1 test produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-test.xml
@@ -329,4 +447,4 @@
 [debug] 	report for default#cminus$sources;0.1 plugin produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-plugin.xml
 [debug] 	report for default#cminus$sources;0.1 pom produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-pom.xml
 [debug] 	report for default#cminus$sources;0.1 scala-tool produced in /home/jonathan/IdeaProjects/cminus/target/scala-2.12/resolution-cache/reports/default-cminus$sources-scala-tool.xml
-[debug] 	resolve done (45ms resolve - 5983ms download)
+[debug] 	resolve done (210ms resolve - 6429ms download)

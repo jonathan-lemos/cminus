@@ -16,7 +16,7 @@ object TokenType extends Enumeration {
   * @param line The line this token occurs on.
   */
 case class Token(tok: TokenType.Value, text: String, line: Int) {
-	override def toString: String = line + ":" + tok + "\t" + text
+	override def toString: String = f"($line,$tok,$text)"
 }
 
 /**
@@ -36,7 +36,7 @@ object Lexer {
 	  *
 	  * Seq is needed over HashSet because order is important.
 	  */
-	private val operators = Seq("==", "!=", ">=", "<=", "||", "&&", "<<", ">>", "+=", "-=", "*=", "/=", "++", "--", "|", "&", "!", "=", ">", "<", "*", "/", "+", "-")
+	private val operators = Seq("==", "!=", ">=", "<=", ">", "<", "=", "*", "/", "+", "-")
 
 	/**
 	  * The punctuation supported. These will be returned as TokenType.OPERATOR
@@ -147,11 +147,23 @@ object Lexer {
 	private def buildRegex(c: Iterable[String]): Regex = ("^(" + c.reduce((a, k) => a + "|" + standardizeRegex(k)) + ")(.*)$").r
 
 	/**
+	  * Builds a bounded regex out of an iterable.
+	  * The tokens in the list can only be followed by a non word character or end of line.
+	  * Group 1 - Captures anything in the iterable. This is case sensitive.
+	  * Group 2 - The rest of the string.
+	  * For example {"abc", "def", "()["} turns into {{{ "^(abc\\b|def\\v|\(\)\[\\b)(.*)$" }}}
+	  *
+	  * @param c The collection of elements. This must be iterable (foreach)
+	  * @return  The corresponding regex.
+	  */
+	private def buildRegexBounded(c: Iterable[String]): Regex = ("^(" + c.reduce((a, k) => a + "|" + standardizeRegex(k) + "\\b") + ")(.*)$").r
+
+	/**
 	  * Matches keywords ("if", "return", etc.)
 	  * Group 1 - The keyword
 	  * Group 2 - The rest of the string.
 	  */
-	private val keywordRegex = buildRegex(keywords)
+	private val keywordRegex = buildRegexBounded(keywords)
 
 	/**
 	  * Matches operators ("==", ">>", etc.)
@@ -193,16 +205,16 @@ object Lexer {
 			while (sb != "") {
 				// Try to match a token. If we match, remove that token from the string.
 				sb match {
-					// If we are in a comment, attempt to match an ending comment (*/) on this line
-					case blockCommentCloseRegex(rest) if commentCtr > 0 =>
-						// If we match, reduce the comment level
-						commentCtr -= 1
-						// Set sb to the rest of the string
-						sb = rest
 					// Attempt to match an open comment (/*)
 					case blockCommentOpenRegex(rest) =>
 						// If we match, increase the comment counter
 						commentCtr += 1
+						// Set sb to the rest of the string
+						sb = rest
+					// If we are in a comment, attempt to match an ending comment (*/) on this line
+					case blockCommentCloseRegex(rest) if commentCtr > 0 =>
+						// If we match, reduce the comment level
+						commentCtr -= 1
 						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match a one-line comment (//) if we are not currently in a comment
@@ -255,7 +267,7 @@ object Lexer {
 						// TODO: make this skip to the next identifier instead of using this hack
 
 						// This is a syntax error. Add the error to the string if the last token was not an error.
-						if (arr(arr.length - 1).line == i + 1 && arr(arr.length - 1).tok != TokenType.ERROR) {
+						if (arr(arr.length - 1).line != i + 1 || arr(arr.length - 1).tok != TokenType.ERROR) {
 							arr += Token(TokenType.ERROR, sb, i + 1)
 						}
 						// Remove one character from the front of the string.

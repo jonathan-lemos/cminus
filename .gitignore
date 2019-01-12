@@ -1,4 +1,7 @@
 out/*
 project/target/**/**/resolution-cache
 target/**/resolution_cache/*
-.idea/dictionaries/*
+*.xml
+target/scala-2.12
+*.class
+*.cache

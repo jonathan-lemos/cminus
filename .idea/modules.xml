@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/cminus.iml" filepath="$PROJECT_DIR$/.idea/modules/cminus.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/cminus-build.iml" filepath="$PROJECT_DIR$/.idea/modules/cminus-build.iml" />
     </modules>
   </component>
 </project>

@@ -113,19 +113,23 @@ object Lexer {
 	private val blockCommentOpenRegex = "^/\\*(.*)$".r
 
 	/**
-	 /*/*/*
-	  * Matches "*/" anywhere in the string
-	  * Group 1 - The rest of the string.
+	 /*/*
+	  * Matches "/*" or "*/" anywhere in the string
+	  * Group 1 - The token matched.
+	  * Group 2 - The rest of the string.
 	  *
 	  * {{{
-	  * "\\*/"          - Matches a "*" followed by a literal "/"
-	  * ".*"            - Matches any character.
-	  * "(.*)"          - Captures a group of any character.
+	  * "\\*/"                 - Matches a "*" followed by a literal "/"
+	  * "/\\*"                 - Matches a literal "/" followed by a literal "*"
+	  * ".*"                   - Matches any character.
+	  * ".*?"                  - Matches any character lazily (taking as few characters as needed).
+	  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
+	  * "(.*)"                 - Captures a group of any character.
 	  *
-	  * "^.*\\* /(.*)$" - Matches a "*/" anywhere in the string, while capturing the rest of the string after.
+	  * "^.*?(\\*/|/\\*)(.*)$" - Matches a "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
 	  * }}}
 	  */
-	private val blockCommentCloseRegex = "^.*\\*/(.*)$".r
+	private val blockCommentInsideRegex = "^.*?(\\*/|/\\*)(.*)$".r
 
 	/**
 	  * Escapes special "regex" characters in a string.
@@ -205,16 +209,19 @@ object Lexer {
 			while (sb != "") {
 				// Try to match a token. If we match, remove that token from the string.
 				sb match {
+					// If we are in a comment, attempt to match an ending comment (*/) on this line
+					case blockCommentInsideRegex(token, rest) if commentCtr > 0 =>
+						// Increase or decrease the comment counter depending on what we found.
+						token match {
+							case "/*" => commentCtr += 1
+							case "*/" => commentCtr -= 1
+						}
+						// Set sb to the rest of the string
+						sb = rest
 					// Attempt to match an open comment (/*)
 					case blockCommentOpenRegex(rest) =>
 						// If we match, increase the comment counter
 						commentCtr += 1
-						// Set sb to the rest of the string
-						sb = rest
-					// If we are in a comment, attempt to match an ending comment (*/) on this line
-					case blockCommentCloseRegex(rest) if commentCtr > 0 =>
-						// If we match, reduce the comment level
-						commentCtr -= 1
 						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match a one-line comment (//) if we are not currently in a comment

@@ -84,14 +84,18 @@ class LexerTest extends FunSuite {
 
 	test("Lexer.comment") {
 		val res = Lexer(Seq(
-			"/*abc*/**/ */def*/ghi/*jkl/*",
-			"abc/**/*/def*/*/",
-			"ghi/*"
+			"/** /abc*/*def/* * / *//*/*ghi*/*/jkl/*/*mno/*",
+			"abc */ def */ */ ghi */",
+			"abc /* def /* ghi */"
 		))
 		val expect = Seq(
-			Token(TokenType.IDENTIFIER, "ghi", 1),
-			Token(TokenType.ERROR, "*", 2),
-			Token(TokenType.IDENTIFIER, "ghi", 3),
+			Token(TokenType.OPERATOR, "*", 1),
+			Token(TokenType.IDENTIFIER, "def", 1),
+			Token(TokenType.IDENTIFIER, "jkl", 1),
+			Token(TokenType.IDENTIFIER, "ghi", 2),
+			Token(TokenType.OPERATOR, "*", 2),
+			Token(TokenType.OPERATOR, "/", 2),
+			Token(TokenType.IDENTIFIER, "abc", 3),
 			Token(TokenType.ERROR, "Expected */", 3),
 		)
 		assert(res == expect)

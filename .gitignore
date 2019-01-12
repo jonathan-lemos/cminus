@@ -21,6 +21,6 @@ out/*
 *.iws
 .idea_modules/*
 project/target/**/**/resolution-cache
-target/**/resolution_cache/*
+target/scala-2.12
 *.class
 *.cache

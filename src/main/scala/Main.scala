@@ -1,7 +1,7 @@
 import scala.io.Source
 
 object Main extends App {
-	private def tokenPrettyPrint(c: Iterable[Token]) = {
+	private def tokenPrettyPrint(c: Iterable[Token]): Unit = {
 		def pad(s: Any, n: Int): String = ("%-" + n + "s").format(s.toString)
 		val tokLen: Int = c.reduceLeft((t1: Token, t2: Token) => if (t1.tok.toString.length > t2.tok.toString.length) t1 else t2).tok.toString.length
 		val lineLen: Int = c.reduceLeft((t1: Token, t2: Token) => if (t1.line > t2.line) t1 else t2).line.toString.length

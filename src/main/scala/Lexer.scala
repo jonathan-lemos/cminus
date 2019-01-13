@@ -6,7 +6,7 @@ import scala.util.matching.Regex
   * The types of tokens this Lexer can output.
   */
 object TokenType extends Enumeration {
-	val ERROR, IDENTIFIER, KEYWORD, NUMBER, OPERATOR, PUNCTUATION, TYPE = Value
+	val ADDOP, ASSGNOP, ERROR, IDENTIFIER, KEYWORD, MULOP, NUMBER, PUNCTUATION, RELOP, TYPE = Value
 }
 
 /**
@@ -19,29 +19,52 @@ case class Token(tok: TokenType.Value, text: String, line: Int) {
 	override def toString: String = f"($line,$tok,$text)"
 }
 
+
 /**
   * Lexically analyzes the raw lines.
   * The first step in compilation outside of reading the file.
   */
 object Lexer {
 	/**
+	  * The addition operators supported.
+	  *
+	  * These will be returned as TokenType.ADDOP
+ 	  */
+	private val addOps = HashSet("+", "-")
+
+	/**
+	  * The assignment operators supported.
+	  * Assignment operators assign the right side to the left side.
+	  *
+	  * These will be returned as TokenType.ASSGNOP
+	  */
+	private val assgnOps = HashSet("=")
+
+	/**
 	  * The keywords supported. These will be returned as TokenType.KEYWORD
 	  */
 	private val keywords = HashSet("else", "if", "return", "while")
 
 	/**
-	  * The operators supported.
-	  * These are matched from left to right (so "==" matches before "=").
-	  * These will be returned as TokenType.OPERATOR
+	  * The multiplication operators supported.
 	  *
-	  * Seq is needed over HashSet because order is important.
+	  * These will be returned as TokenType.MULOP
 	  */
-	private val operators = Seq("==", "!=", ">=", "<=", ">", "<", "=", "*", "/", "+", "-")
+	private val mulOps = HashSet("*", "/")
 
 	/**
-	  * The punctuation supported. These will be returned as TokenType.OPERATOR
+	  * The punctuation supported.
+	  * These will be returned as TokenType.PUNCTUATION.
 	  */
 	private val punctuation = HashSet("{", "}", "(", ")", ";", ",")
+
+	/**
+	  * The relational operators supported.
+	  * Relational operators compare two files.
+	  *
+	  * These will be returned as TokenType.RELOP
+	  */
+	private val relOps = HashSet("==", "!=", ">=", "<=", ">", "<")
 
 	/**
 	  * The types supported. These will be returned as TokenType.TYPE
@@ -54,18 +77,20 @@ object Lexer {
 	  * Group 2 - The rest of the string
 	  *
 	  * {{{
-	  * "[A-Za-z_]"          - Matches an upper/lower case letter or underscore (identifier character)
-	  * "[A-Za-z_]+"         - Matches one or more identifier characters
-	  * "([A-Za-z_]+)"       - Captures a group of one or more identifier characters
-	  * "^([A-Za-z_]+)"      - Matches 0 or more of any character at the beginning of the string.
-	  * "."                  - Matches any character
-	  * ".*"                 - Matches 0 or more of any character
-	  * "(.*)"               - Captures a group of 0 or more of any character
-	  * "(.*)$"              - Captures a group of 0 or more of any character until the end of the string.
-	  * "^([A-Za-z_]+)(.*)$" - Captures a group of identifier characters at the beginning of the string, and then captures the rest of the characters in another group.
+	  * [A-Za-z_]          - Matches an upper/lower case letter or underscore (identifier character)
+	  * [A-Za-z_]+         - Matches one or more identifier characters
+	  * ([A-Za-z_]+)       - Captures a group of one or more identifier characters
+	  * ^([A-Za-z_]+)      - Matches 0 or more of any character at the beginning of the string.
+	  * .                  - Matches any character
+	  * .*                 - Matches 0 or more of any character
+	  * (.*)               - Captures a group of 0 or more of any character
+	  * (.*)$              - Captures a group of 0 or more of any character until the end of the string.
+	  * ^([A-Za-z_]+)(.*)$ - Captures a group of identifier characters at the beginning of the string, and then captures the rest of the characters in another group.
 	  * }}}
+	  *
+	  * Triple quotes denote a "raw" string, where backslashes show up literally instead of escaping the next character.
 	  */
-	private val identifierRegex = "^([A-Za-z_]+)(.*)$".r
+	private val identifierRegex = """^([A-Za-z_]+)(.*)$""".r
 
 	/**
 	  * Matches numbers, which are strings of numbers with an optional period in the middle.
@@ -73,20 +98,20 @@ object Lexer {
 	  * Group 2 - The rest of the string
 	  *
 	  * {{{
-	  * "[0-9]"                          - Matches a numeric character.
-	  * "[0-9]+"                         - Matches one or more numeric characters.
-	  * "\\."                            - Matches a literal period ("." matches any character, "\\" is a literal backslash that escapes it).
-	  * "\\.?"                           - Matches 0 or 1 literal periods.
-	  * "[0-9]+\\.?"                     - Matches one or more numeric characters followed by an optional literal period.
-	  * "[0-9]+\\.?[0-9]+"               - Matches one or more numeric characters followed by an optional literal period followed by one or more numeric characters.
-	  * "|"                              - Regex OR. Has the lowest precedence of all regex operators.
-	  * "[0-9]+\\.?[0-9]+|[0-9]          - Matches either a number followed by an optional period followed by a number, or a single number.
-	  *                                    The first regex will not match a single number, so a second one is needed to cover it.
-	  * "(.*)$"                          - Captures a group of any character until the end of the string.
-	  * "^([0-9]+\\.?[0-9]+|[0-9])(.*)$" - Captures a number with an optional period in the middle, and in a seperate group captures the rest of the string.
+	  * [0-9]                         - Matches a numeric character.
+	  * [0-9]+                        - Matches one or more numeric characters.
+	  * \.                            - Matches a literal period (. matches any character, \\ is a literal backslash that escapes it).
+	  * \.?                           - Matches 0 or 1 literal periods.
+	  * [0-9]+\.?                     - Matches one or more numeric characters followed by an optional literal period.
+	  * [0-9]+\.?[0-9]+               - Matches one or more numeric characters followed by an optional literal period followed by one or more numeric characters.
+	  * |                             - Regex OR. Has the lowest precedence of all regex operators.
+	  * [0-9]+\.?[0-9]+|[0-9]         - Matches either a number followed by an optional period followed by a number, or a single number.
+	  *                                 The first regex will not match a single number, so a second one is needed to cover it.
+	  * (.*)$                         - Captures a group of any character until the end of the string.
+	  * ^([0-9]+\.?[0-9]+|[0-9])(.*)$ - Captures a number with an optional period in the middle, and in a seperate group captures the rest of the string.
 	  * }}}
 	  */
-	private val numberRegex = "^([0-9]+\\.?[0-9]+|[0-9])(.*)$".r
+	private val numberRegex = """^([0-9]+\.?[0-9]+|[0-9])(.*)$""".r
 
 	/**
 	  * Matches "//".
@@ -98,7 +123,7 @@ object Lexer {
 	  * "^//.*$" - Matches "//" at any point in the string.
 	  * }}}
 	  */
-	private val oneLineCommentRegex = "^//.*$".r
+	private val oneLineCommentRegex = """^//.*$""".r
 
 	/**
 	  * Matches "/*"
@@ -110,10 +135,10 @@ object Lexer {
 	  * "^/\\*(.*)$" - Matches a "/*" and captures the rest of the string.
 	  * }}}
 	  */*/*/
-	private val blockCommentOpenRegex = "^/\\*(.*)$".r
+	private val blockCommentOpenRegex = """^/\*(.*)$""".r
 
 	/**
-	 /*/*
+	/*/*
 	  * Matches "/*" or "*/" anywhere in the string
 	  * Group 1 - The token matched.
 	  * Group 2 - The rest of the string.
@@ -126,10 +151,10 @@ object Lexer {
 	  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
 	  * "(.*)"                 - Captures a group of any character.
 	  *
-	  * "^.*?(\\*/|/\\*)(.*)$" - Matches a "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
+	  * "^.*?(\\*/|/\\*)(.*)$" - Matches the first "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
 	  * }}}
 	  */
-	private val blockCommentInsideRegex = "^.*?(\\*/|/\\*)(.*)$".r
+	private val blockCommentInsideRegex = """^.*?(\*/|/\*)(.*)$""".r
 
 	/**
 	  * Escapes special "regex" characters in a string.
@@ -137,7 +162,7 @@ object Lexer {
 	  * @param s The string to standardize.
 	  * @return  The standardized string.
 	  */
-	private def standardizeRegex(s: String): String = s.replaceAll("([\\[\\]\\{\\}\\(\\)\\\\\\|\\&\\*\\+])", "\\\\$1")
+	private def standardizeRegex(s: String): String = s.replaceAll("""([\[\]\{\}\(\)\\\&\|\*\+])""", """\\$1""")
 
 	/**
 	  * Builds a regex out of an iterable.
@@ -148,7 +173,7 @@ object Lexer {
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
 	  */
-	private def buildRegex(c: Iterable[String]): Regex = ("^(" + c.reduce((a, k) => a + "|" + standardizeRegex(k)) + ")(.*)$").r
+	private def buildRegex(c: Iterable[String]): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_)).substring(1) + ")(.*)$").r
 
 	/**
 	  * Builds a bounded regex out of an iterable.
@@ -160,7 +185,21 @@ object Lexer {
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
 	  */
-	private def buildRegexBounded(c: Iterable[String]): Regex = ("^(" + c.reduce((a, k) => a + "|" + standardizeRegex(k) + "\\b") + ")(.*)$").r
+	private def buildRegexBounded(c: Iterable[String]): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_) + "\\b").substring(1) + ")(.*)$").r
+
+	/**
+	  * Matches addops
+	  * Group 1 - The keyword
+	  * Group 2 - The rest of the string.
+	  */
+	private val addOpsRegex = buildRegex(addOps)
+
+	/**
+	  * Matches assgnops
+	  * Group 1 - The keyword
+	  * Group 2 - The rest of the string.
+	  */
+	private val assgnOpsRegex = buildRegex(assgnOps)
 
 	/**
 	  * Matches keywords ("if", "return", etc.)
@@ -170,11 +209,11 @@ object Lexer {
 	private val keywordRegex = buildRegexBounded(keywords)
 
 	/**
-	  * Matches operators ("==", ">>", etc.)
-	  * Group 1 - The operator.
+	  * Matches mulops
+	  * Group 1 - The keyword
 	  * Group 2 - The rest of the string.
 	  */
-	private val operatorRegex = buildRegex(operators)
+	private val mulOpsRegex = buildRegex(mulOps)
 
 	/**
 	  * Matches punctuation ("{", "[", etc.)
@@ -182,6 +221,13 @@ object Lexer {
 	  * Group 2 - The rest of the string.
 	  */
 	private val punctuationRegex = buildRegex(punctuation)
+
+	/**
+	  * Matches relational operators ("==", ">>", etc.)
+	  * Group 1 - The operator.
+	  * Group 2 - The rest of the string.
+	  */
+	private val relOpsRegex = buildRegex(relOps)
 
 	/**
 	  * Matches type keywords ("int", "void", etc.)
@@ -230,40 +276,37 @@ object Lexer {
 						sb = ""
 					// Attempt to match a keyword if we are not in a comment
 					case keywordRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this keyword to the list
 						arr += Token(TokenType.KEYWORD, token, i + 1)
-						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match an operator if we are not in a comment
-					case operatorRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this operator to the list
-						arr += Token(TokenType.OPERATOR, token, i + 1)
-						// Set sb to the rest of the string
+					case addOpsRegex(token, rest) if commentCtr == 0 =>
+						arr += Token(TokenType.ADDOP, token, i + 1)
+						sb = rest
+					case relOpsRegex(token, rest) if commentCtr == 0 =>
+						arr += Token(TokenType.RELOP, token, i + 1)
+						sb = rest
+					case mulOpsRegex(token, rest) if commentCtr == 0 =>
+						arr += Token(TokenType.MULOP, token, i + 1)
+						sb = rest
+					case assgnOpsRegex(token, rest) if commentCtr == 0 =>
+						arr += Token(TokenType.ASSGNOP, token, i + 1)
 						sb = rest
 					// Attempt to match punctuation if we are not in a comment
 					case punctuationRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this operator to the list
 						arr += Token(TokenType.PUNCTUATION, token, i + 1)
-						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match a type if we are not in a comment
 					case typesRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this type to the list
 						arr += Token(TokenType.TYPE, token, i + 1)
-						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match an identifier if we are not in a comment
 					// This must be after other matchers because otherwise it will match keywords
 					case identifierRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this identifier to the list
 						arr += Token(TokenType.IDENTIFIER, token, i + 1)
-						// Set sb to the rest of the string
 						sb = rest
 					// Attempt to match a number if we are not in a comment
 					case numberRegex(token, rest) if commentCtr == 0 =>
-						// If we match, add this number to the list
 						arr += Token(TokenType.NUMBER, token, i + 1)
-						// Set sb to the rest of the string
 						sb = rest
 					// If we are in a comment and we didn't match
 					case _ if commentCtr > 0 =>

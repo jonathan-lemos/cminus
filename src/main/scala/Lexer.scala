@@ -1,7 +1,7 @@
 import scala.collection.immutable.{HashSet, SortedSet}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
-import scala.MatchError
+import scala.{MatchError, None}
 
 /**
   * The types of tokens this Lexer can output.
@@ -160,49 +160,6 @@ object Lexer {
 	)
 
 	/**
-	  * Matches "//".
-	  * This regex does not capture anything.
-	  *
-	  * {{{
-	  * "//"     - Matches "//" literally
-	  * ".*"     - Matches any character 0 or more times.
-	  * "^//.*$" - Matches "//" at any point in the string.
-	  * }}}
-	  */
-	private val oneLineCommentRegex = """^//.*$""".r
-
-	/**
-	  * Matches "/*"
-	  * Group 1 - The rest of the string.
-	  *
-	  * {{{
-	  * "/\\*"       - Matches a "/" followed by a literal "*" ("*" without backslash means "0 or more of the aforementioned")
-	  * ".*"         - Matches any character 0 or more times.
-	  * "^/\\*(.*)$" - Matches a "/*" and captures the rest of the string.
-	  * }}}
-	  */*/*/
-	private val blockCommentOpenRegex = """^/\*(.*)$""".r
-
-	/**
-	/*/*
-	  * Matches "/*" or "*/" anywhere in the string
-	  * Group 1 - The token matched.
-	  * Group 2 - The rest of the string.
-	  *
-	  * {{{
-	  * "\\*/"                 - Matches a "*" followed by a literal "/"
-	  * "/\\*"                 - Matches a literal "/" followed by a literal "*"
-	  * ".*"                   - Matches any character.
-	  * ".*?"                  - Matches any character lazily (taking as few characters as needed).
-	  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
-	  * "(.*)"                 - Captures a group of any character.
-	  *
-	  * "^.*?(\\*/|/\\*)(.*)$" - Matches the first "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
-	  * }}}
-	  */
-	private val blockCommentInsideRegex = """^.*?(\*/|/\*)(.*)$""".r
-
-	/**
 	  * Lexically analyzes lines of source code.
 	  * @param lines The lines of code.
 	  * @return      A sequence of tokens.
@@ -213,53 +170,113 @@ object Lexer {
 		// How deeply nested we are in /* */ comments.
 		// 0 means we are not currently in a comment
 		var commentCtr: Int = 0
+
+		/**
+		  * Handles comments in the string if applicable.
+		  *
+		  * @param sb The string to process.
+		  * @return An option containing Some(rest_of_string) or None() (if comments were not handled)
+		  */
+		def handleComment(sb: String): Option[String] = {
+			// If we are in a comment.
+			if (commentCtr > 0) {
+				/**
+				/*/*
+				  * Matches "/*" or "*/" anywhere in the string
+				  * Group 1 - The token matched.
+				  * Group 2 - The rest of the string.
+				  *
+				  * {{{
+				  * "\\*/"                 - Matches a "*" followed by a literal "/"
+				  * "/\\*"                 - Matches a literal "/" followed by a literal "*"
+				  * ".*"                   - Matches any character.
+				  * ".*?"                  - Matches any character lazily (taking as few characters as needed).
+				  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
+				  * "(.*)"                 - Captures a group of any character.
+				  *
+				  * "^.*?(\\*/|/\\*)(.*)$" - Matches the first "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
+				  * }}}
+				  */
+				val blockCommentInsideRegex = """^.*?(\*/|/\*)(.*)$""".r
+
+				sb match {
+					// Use the "blockCommentInsideRegex, which matches "/*" or "*/" anywhere in this line."
+					case blockCommentInsideRegex(token, rest) =>
+						token match {
+							case "/*" => commentCtr += 1
+							case "*/" => commentCtr -= 1
+						}
+						Some(rest)
+					case _ => Some("")
+				}
+			}
+			// If we are not in a comment.
+			else {
+				/**
+				  * Matches "/*"
+				  * Group 1 - The rest of the string.
+				  *
+				  * {{{
+				  * "/\\*"       - Matches a "/" followed by a literal "*" ("*" without backslash means "0 or more of the aforementioned")
+				  * ".*"         - Matches any character 0 or more times.
+				  * "^/\\*(.*)$" - Matches a "/*" and captures the rest of the string.
+				  * }}}
+				  */*/*/
+				val blockCommentOpenRegex = """^/\*(.*)$""".r
+
+				/**
+				  * Matches "//".
+				  * This regex does not capture anything.
+				  *
+				  * {{{
+				  * "//"     - Matches "//" literally
+				  * ".*"     - Matches any character 0 or more times.
+				  * "^//.*$" - Matches "//" at any point in the string.
+				  * }}}
+				  */
+				val oneLineCommentRegex = """^//.*$""".r
+
+				sb match {
+					// Attempt to match "/*" at the beginning of this string.
+					case blockCommentOpenRegex(rest) =>
+						commentCtr += 1
+						Some(rest)
+					// Attempt to match "//" at the beginning of this string, ignore the rest of the line if so.
+					case oneLineCommentRegex() => Some("")
+					case _ => None
+				}
+			}
+		}
+
+		/**
+		  * Extracts a token from the string, returning the token and the rest of the string.
+		  * @param sb The input string.
+		  * @param line The line number.
+		  * @return A tuple containing the extracted token and the rest of the string.
+		  * If none could be matched, it returns a token of type TokenType.ERROR that extracts a single character, returning the rest of the string.
+		  */
+		def getToken(sb: String, line: Int): (Token, String) = tokenClasses.foldLeft((Token(TokenType.ERROR, sb.substring(0, 1), line), sb.substring(1)))((ta: (Token, String), tk: (TokenType.Value, Regex))=> {
+			sb match {
+				// if this regex matches, set our return to the longer of the tokens
+				case tk._2(tok, rest) => if (ta._1.tok != TokenType.ERROR && ta._1.text.length >= tok.length) ta else (Token(tk._1, tok, line), rest)
+				// if not, just return ta
+				case _ => ta;
+			}
+		})
+
 		// Foreach line with line number
 		for ((s, i) <- lines.zipWithIndex) {
 			var sb = s.trim()
 			// While there is still text in sb, repeatedly extract a token from the beginning
 			while (sb != "") {
-				// if we're in a comment
-				if (commentCtr > 0) {
-					// we only need to look for open/close comments
-					sb match {
-						case blockCommentInsideRegex(token, rest) =>
-							token match {
-								case "/*" => commentCtr += 1
-								case "*/" => commentCtr -= 1
-							}
-							sb = rest
-						// if we didn't find any, skip this line
-						case _ =>
-							sb = ""
-					}
+				handleComment(sb) match {
+					case Some(rest) => sb = rest
+					case None =>
+						val tok = getToken(sb, i + 1)
+						arr += tok._1
+						sb = tok._2
 				}
-				else {
-					sb match {
-						// match comments first
-						case blockCommentOpenRegex(rest) =>
-							commentCtr += 1
-							sb = rest
-						case oneLineCommentRegex() =>
-							// don't process the rest of the string after '//'
-							sb = ""
-						case _	=>
-							// get the longest match, this causes "==" to outprioritize "="
-							// on error, return an error token containing the first char, increase the char counter
-							val mat = tokenClasses.foldLeft((TokenType.ERROR, sb.substring(0, 1), sb.substring(1)))((ta: (TokenType.Value, String, String), tk: (TokenType.Value, Regex))=> {
-								sb match {
-									// if this regex matches, set our return to the longer of the tokens
-									case tk._2(tok, rest) => if (ta._1 != TokenType.ERROR && ta._2.length >= tok.length) ta else (tk._1, tok, rest)
-									// if not, just return ta
-									case _ => ta;
-								}
-							})
-							// add this token
-							arr += Token(mat._1, mat._2, i + 1)
-							// set sb to the rest of the string
-							sb = mat._3
-					}
-				}
-				// remove whitespace from the resulting string
+				// Remove whitespace.
 				sb = sb.trim()
 			}
 		}

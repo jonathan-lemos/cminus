@@ -16,8 +16,8 @@ object ASTType extends Enumeration {
 case class   ASTNode(typ: ASTType.Value)
 case class   ProgramNode(declarations: Seq[Declaration])                                                             extends ASTNode(ASTType.PROGRAM)
 sealed trait Declaration
-case class   VarDeclNode(typename: String, identifier: String)                                                       extends ASTNode(ASTType.VARDECL) with Declaration
-case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode])                             extends ASTNode(ASTType.FUNDECL) with Declaration
+case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None)                         extends ASTNode(ASTType.VARDECL) with Declaration
+case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: Seq[Statement])       extends ASTNode(ASTType.FUNDECL) with Declaration
 case class   ParamNode(typename: String, identifier: String)                                                         extends ASTNode(ASTType.PARAM)
 sealed trait Statement
 case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement]) extends ASTNode(ASTType.SELECTION_STATEMENT) with Statement
@@ -40,7 +40,15 @@ class TokStream(private val tok: Seq[Token]) {
 	def peek: Option[Token] = str.headOption
 	def extract: Token = {
 		if (this.empty) {
-			throw new
+			throw new IllegalArgumentException("This TokStream is empty")
+		}
+		val ret = str.head
+		str.remove(0)
+		Some(ret)
+	}
+	def extractOption: Option[Token] = {
+		if (this.empty) {
+			None
 		}
 		val ret = str.head
 		str.remove(0)
@@ -48,7 +56,10 @@ class TokStream(private val tok: Seq[Token]) {
 	}
 	def nonEmpty: Boolean = str.nonEmpty
 	def empty: Boolean = str.isEmpty
-	def len: Int = str.length
+	def skipLine: Unit = {
+		if (this.empty) return
+		while (this.peek.nonEmpty)
+	}
 }
 
 object Parser {
@@ -80,16 +91,51 @@ object Parser {
 		("arg-list", "arg-list , expression|expression"),
 	)
 
-	def readVarDecl(typename: String, stream: ListBuffer[Token])
+	def readCompoundStmt(stream: TokStream): Try[Seq[Statement]] = {
+
+	}
+
+	def readFunDecl(typename: String, identifier: String, stream: TokStream): Try[FunDeclNode] = {
+
+	}
+
+	def readVarDeclArray(typename: String, identifier: String, stream: TokStream): Try[VarDeclNode] = {
+		// remaining tokens to match are NUM ]
+
+		var num = 0.0
+		// match NUM
+		stream.peek match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.NUMBER => try { num = tok.text.toInt } catch { case e: NumberFormatException => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INTEGER, but found \"${tok.text}\""))}
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected NUMBER, but found ${tok.tok}"))
+				}
+			case None => Failure(new IllegalArgumentException(s"Expected NUMBER, but stream is empty"))
+		}
+		stream.extract
+
+		// check if next token is PUNCTUATION
+		stream.peek match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.PUNCTUATION =>
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \"]\" but found ${tok.tok}"))
+				}
+			case None => Failure(new IllegalArgumentException(s"Expected \"]\", but stream is empty"))
+		}
+
+		val next = stream.extract
+		next.text match {
+			case "]" => Success(VarDeclNode(typename, identifier, num))
+			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \"]\", but found \"${next.text}\""))
+		}
+	}
 
 	def readDeclaration(stream: TokStream): Try[Declaration] = {
-		if (stream.len < 3) {
-			Failure(new IllegalArgumentException(s"Need at least 3 tokens to match declaration but stream has ${stream.len}"))
-		}
 		var typename: String = ""
 		var identifier: String = ""
 
-		// all declarations start with TYPE ID, so we attempt to match those first
+		// all declarations start with TYPE ID PUNCTUATION, so we attempt to match those first
 
 		// match TYPE
 		stream.peek match {
@@ -98,9 +144,9 @@ object Parser {
 					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected TYPE, but found ${tok.tok}"))
 				}
 				typename = tok.text
-				stream.extract
 			case None => Failure(new IllegalArgumentException(s"Expected TYPE, but stream is empty"))
 		}
+		stream.extract
 		// match ID
 		stream.peek match {
 			case Some(tok) =>
@@ -108,19 +154,25 @@ object Parser {
 					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected IDENTIFIER, but found ${tok.tok}"))
 				}
 				identifier = tok.text
-				stream.extract
 			case None => Failure(new IllegalArgumentException("Expected IDENTIFIER, but stream is empty"))
 		}
-
-		// now match the next token
+		stream.extract
+		// match PUNCTUATION
 		stream.peek match {
 			case Some(tok) =>
 				if (tok.tok != TokenType.PUNCTUATION) {
-					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected (, [, or ; but found ${tok.line}"))
+					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \"(, [, or ;\" but found ${tok.tok}"))
 				}
 			case None => Failure(new IllegalArgumentException(s"Expected (, [, or ; but stream is empty"))
 		}
-		VarDeclNode("", "")
+		// get the punctuation
+		val next = stream.extract
+		next.text match {
+			case ";" => Success(VarDeclNode(typename, identifier))
+			case "[" => readVarDeclArray(typename, identifier, stream)
+			case "(" => readFunDecl(typename, identifier, stream)
+			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \"(, [, or ;\" but found \"${next.text}\""))
+		}
 	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {

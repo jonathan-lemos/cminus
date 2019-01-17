@@ -3,7 +3,7 @@ import org.scalatest.FunSuite
 class LexerTest extends FunSuite {
 	test("Lexer.basic") {
 		val res = Lexer(Seq(
-			"(else== int abc 123 }"
+			"(else== int abc 123 123.0 -123e+19 }"
 		))
 		val expect = Seq(
 			Token(TokenType.PUNCTUATION, "(", 1),
@@ -11,7 +11,9 @@ class LexerTest extends FunSuite {
 			Token(TokenType.RELOP, "==", 1),
 			Token(TokenType.TYPE, "int", 1),
 			Token(TokenType.IDENTIFIER, "abc", 1),
-			Token(TokenType.NUMBER, "123", 1),
+			Token(TokenType.INT, "123", 1),
+			Token(TokenType.FLOAT, "123.0", 1),
+			Token(TokenType.FLOAT, "-123e-19", 1),
 			Token(TokenType.PUNCTUATION, "}", 1),
 		)
 		assert(res == expect)

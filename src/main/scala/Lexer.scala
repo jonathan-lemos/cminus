@@ -6,7 +6,7 @@ import scala.util.matching.Regex
   * The types of tokens this Lexer can output.
   */
 object TokenType extends Enumeration {
-	val ADDOP, ASSGNOP, ERROR, IDENTIFIER, KEYWORD, MULOP, NUMBER, PUNCTUATION, RELOP, TYPE = Value
+	val ADDOP, ASSGNOP, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, PUNCTUATION, RELOP, TYPE = Value
 }
 
 /**
@@ -74,7 +74,7 @@ object Lexer {
 	  * The regex will match longer entries before shorter ones in a sorted list.
 	  * Group 1 - Captures anything in the iterable. This is case sensitive.
 	  * Group 2 - The rest of the string.
-	  * For example {"abc", "def", "()["} turns into {{{ "^(abc|def|\(\)\[)(.*)$" }}}
+	  * For example {"abc", "def", "()["} turns into {{{ ^(abc|def|\(\)\[)(.*)$ }}}
 	  *
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
@@ -108,6 +108,29 @@ object Lexer {
 		(TokenType.MULOP, buildRegex(Token.mulOps)),
 		(TokenType.RELOP, buildRegex(Token.relOps)),
 		(TokenType.TYPE, buildRegex(Token.types)),
+
+		/**
+		  * Matches floats.
+		  * Examples:     "0.2", "-2.0", "03203.20390", "1.4e19", "-1.4e-19"
+		  * Non-examples: "2", "2.", ".2", "2.0e19.4"
+		  * Group 1 - A float literal.
+		  * Group 2 - The rest of the string
+		  *
+		  * {{{
+		  * [-+]                                         - Matches a plus or a minus.
+		  * [-+]?                                        - Matches an optional plus or minus.
+		  * [0-9]                                        - Matches a numeric character.
+		  * [0-9]+                                       - Matches one or more numeric characters.
+		  * \.                                           - Matches a literal period (. matches any character, "\\" is a literal backslash that escapes it).
+		  * [0-9]+\.[0-9]+                               - Matches one or more numeric characters with a period in the middle followed by one or more numeric characters.
+		  * [eE]                                         - Matches "e" or "E"
+		  * [eE][-+]?[0-9]+                              - Matches "e" or "E" followed by an optional plus or minus followed by one or more numeric characters.
+		  * ([eE][-+]?[0-9]+)?                           - Matches scientific notation suffix optionally.
+		  * ^([-+]?[0-9]+\.[0-9]+([eE][-+]?[0-9]+)?(.*)$ - Matches an optional plus or minus followed by a set of numbers with a period in the middle followed by optional scientific notation suffix.
+		  *
+		  * }}}
+		  */
+		(TokenType.FLOAT, """^([-+]?[0-9]+\.[0-9]+([eE][-+]?[0-9]+)?(.*)$""")
 
 		/**
 		  * Matches identifiers, which are strings of upper/lower case letters with optional underscores.

@@ -8,7 +8,7 @@ class LexerTest extends FunSuite {
 		val expect = Seq(
 			Token(TokenType.PUNCTUATION, "(", 1),
 			Token(TokenType.KEYWORD, "else", 1),
-			Token(TokenType.EQOP, "==", 1),
+			Token(TokenType.RELOP, "==", 1),
 			Token(TokenType.TYPE, "int", 1),
 			Token(TokenType.IDENTIFIER, "abc", 1),
 			Token(TokenType.NUMBER, "123", 1),
@@ -35,7 +35,7 @@ class LexerTest extends FunSuite {
 			Token(TokenType.KEYWORD, "if", 2),
 			Token(TokenType.PUNCTUATION, "(", 2),
 			Token(TokenType.IDENTIFIER, "x_X", 2),
-			Token(TokenType.EQOP, "==", 2),
+			Token(TokenType.RELOP, "==", 2),
 			Token(TokenType.NUMBER, "4", 2),
 			Token(TokenType.PUNCTUATION, ")", 2),
 			Token(TokenType.PUNCTUATION, "{", 2),
@@ -65,8 +65,8 @@ class LexerTest extends FunSuite {
 		))
 		val expect = Seq(
 			Token(TokenType.ASSGNOP, "=", 1),
-			Token(TokenType.EQOP, "!=", 1),
-			Token(TokenType.COMPOP, ">=", 1),
+			Token(TokenType.RELOP, "!=", 1),
+			Token(TokenType.RELOP, ">=", 1),
 			Token(TokenType.ASSGNOP, "=", 1),
 		)
 		assert(res == expect)

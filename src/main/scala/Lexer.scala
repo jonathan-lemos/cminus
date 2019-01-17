@@ -1,13 +1,12 @@
-import scala.collection.immutable.{HashSet, SortedSet}
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
-import scala.{MatchError, None}
 
 /**
   * The types of tokens this Lexer can output.
   */
 object TokenType extends Enumeration {
-	val ADDOP, ASSGNOP, COMPOP, EQOP, ERROR, IDENTIFIER, KEYWORD, MULOP, NUMBER, PUNCTUATION, TYPE = Value
+	val ADDOP, ASSGNOP, ERROR, IDENTIFIER, KEYWORD, MULOP, NUMBER, PUNCTUATION, RELOP, TYPE = Value
 }
 
 /**
@@ -32,18 +31,6 @@ object Token {
 	  */
 	val assgnOps    = HashSet("=")
 	/**
-	  * The list of comparison operators supported by this Lexer.
-	  * Precedence: 6
-	  *
-	  * Seq is needed to match ">=" before ">"
-	  */
-	val compOps     = Seq(">=", "<=", ">", "<")
-	/**
-	  * The list of equality operators supported by this Lexer.
-	  * Precedence: 7
-	  */
-	val eqOps       = HashSet("==", "!=")
-	/**
 	  * The list of keywords supported by this Lexer.
 	  */
 	val keywords    = HashSet("else", "if", "return", "while")
@@ -56,6 +43,11 @@ object Token {
 	  * The list of punctuation supported by this Lexer.
 	  */
 	val punctuation = HashSet("{", "}", "(", ")", ";", ",")
+	/**
+	  * The list of relational operators supported by this Lexer.
+	  * Precedence: 6
+	  */
+	val relOps      = Seq(">=", "<=", "==", "!=", ">", "<")
 	/**
 	  * The list of types supported by this Lexer.
 	  */
@@ -111,11 +103,10 @@ object Lexer {
 	private val tokenClasses: Seq[(TokenType.Value, Regex)] = Seq(
 		(TokenType.ADDOP, buildRegex(Token.addOps)),
 		(TokenType.ASSGNOP, buildRegex(Token.assgnOps)),
-		(TokenType.COMPOP, buildRegex(Token.compOps)),
-		(TokenType.EQOP, buildRegex(Token.eqOps)),
 		(TokenType.KEYWORD, buildRegexBounded(Token.keywords)),
 		(TokenType.PUNCTUATION, buildRegex(Token.punctuation)),
 		(TokenType.MULOP, buildRegex(Token.mulOps)),
+		(TokenType.RELOP, buildRegex(Token.relOps)),
 		(TokenType.TYPE, buildRegex(Token.types)),
 
 		/**

@@ -59,16 +59,13 @@ trait TokStream {
 	def extract: Token
 
 	/**
-	  * Extracts the next element if the given condition is true.
+	  * Extracts the next element if it is of the given TokenType
 	  *
-	  * @param cond
-	  *             True  - Extract the token and advance the stream.
-	  *             False - Leave the stream as-is.
-	  * @return Success(Token)                    - The condition was matched.
-	  *         Failure(IllegalArgumentException) - The condition was not matched.
-	  *         Failure(IllegalStateException)    - The stream is empty.
+	  * @param typ The type of token to extract.
+	  * @return Left(Token) if the token was matched.
+	  *         Right(String) if not. This string will contain a string representation of the error produced.
 	  */
-	def extractIf(typ: TokenType.Value): Try[Token]
+	def extractType(typ: TokenType.Value): Either[Token, String]
 
 	/**
 	  * Checks if the stream has an element in it.
@@ -103,11 +100,11 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 		ret
 	}
 
-	override def extractIf(): Try[Token] = {
+	override def extractType(typ: TokenType.Value): Either[Token, String] = {
 		this.peekOption match {
-			case Some(token) if cond(token) => Success(this.extract)
-			case Some(token) => Failure()
-			case _ => None
+			case Some(token) if typ == token.tok => Left(this.extract)
+			case Some(token) => Right(s"Line ${token.line}: Expected $typ but found ${token.text}")
+			case _ => Right(s"Expected $typ but reached end of stream")
 		}
 	}
 
@@ -153,142 +150,65 @@ object Parser {
 		("arg-list", "arg-list , expression|expression"),
 	)
 
-	def getToken(stream: TokStream, token: Option[Token], expected: TokenType.Value): Try[Token] = {
+	def getTokenType(stream: TokStream, token: Option[Token], expected: TokenType.Value): Try[Token] = {
 		token match {
 			case Some(tok) if tok.tok == expected => Success(tok)
 			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected $expected but found ${tok.text}"))
 			case None =>
-				if (stream.empty) Failure(new IllegalArgumentException(s"Expected $expected but end of stream was reached"))
-				stream.extractIf(_.tok == expected) match {
-					case Some(tok) => Success(tok)
-					case None =>
+				stream.extractType(expected) match {
+					case Left(tok) => Success(tok)
+					case Right(str) => Failure(new IllegalArgumentException(str))
 				}
 		}
 	}
 
-	def readCompoundStmt(stream: TokStream): Try[Seq[Statement]] = {
-		Failure(new IllegalArgumentException("not implemented yet"))
-	}
-
-	def readParam(stream: TokStream): Try[ParamNode] = {
-		// need to read TYPE ID ; | TYPE ID [ ] ;
-		var typename = ""
-		var identifier = ""
-		// TYPE
-		stream.peek match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.TYPE => typename = tok.text
-					case _ 	=> Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected TYPE but found ${tok.tok}"))
-				}
-			case None => Failure(new IllegalArgumentException(s"Expected TYPE but stream is empty"))
+	def getTokens(stream: TokStream, tokens: Seq[(Option[Token], TokenType.Value)]): Try[Array[Token]] = {
+		val ret: ArrayBuffer[Token] = new ArrayBuffer
+		for ((tok, expected) <- tokens) {
+			getTokenType(stream, tok, expected) match {
+				case Success(t) => ret += t
+				case Failure(e) => return Failure(e)
+			}
 		}
-		stream.extract
-
-		stream.peek match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.
-				}
-		}
-		ParamNode("", "")
-	}
-
-	def readFunDecl(stream: TokStream, typename: String = "", identifier: String = ""): Try[FunDeclNode] = {
-		// remaining tokens to match are params ) compound-stmt
-
-		Failure(new IllegalArgumentException("not implemented yet"))
-	}
-
-	def readVarDeclArray(stream: TokStream, typename: String = "", identifier: String = ""): Try[VarDeclNode] = {
-		// remaining tokens to match are NUM ]
-
-		var num = 0
-		// match NUM
-		stream.peek match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.INT => try { num = tok.text.toInt } catch { case e: NumberFormatException => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INTEGER, but found \'${tok.text}\'"))}
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INT, but found ${tok.tok}"))
-				}
-			case None => Failure(new IllegalArgumentException(s"Expected NUMBER, but stream is empty"))
-		}
-		stream.extract
-
-		// check if next token is PUNCTUATION
-		stream.peek match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.PUNCTUATION => ;
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \']\' but found ${tok.tok}"))
-				}
-			case None => Failure(new IllegalArgumentException(s"Expected \']\', but stream is empty"))
-		}
-
-		val next = stream.extract
-		next.text match {
-			case "]" => Success(VarDeclNode(typename, identifier, Some(num)))
-			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \']\', but found \'${next.text}\'"))
-		}
+		Success(ret)
 	}
 
 	def readDeclaration(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None): Try[Declaration] = {
 		// all declarations start with TYPE ID PUNCTUATION, so we attempt to match those first
 
-		// match TYPE
-		if (stream.empty) Failure(new IllegalArgumentException("Expected TYPE but stream is empty"))
-		var typename = ""
-		typeToken match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.TYPE => typename = tok.text
-					case _ => Failure(new IllegalArgumentException("typeToken parameter must have TYPE type"))
-				}
-			case None =>
-				stream.extractIf(_.tok == TokenType.TYPE) match {
-					case Some(tok) => typename = tok.text
-					case _ => Failure(new IllegalArgumentException("Expected TYPE"))
-				}
+		var tokens: Array[Token] = null
+		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (None, TokenType.PUNCTUATION))) match {
+			case Success(seq) => tokens = seq
+			case Failure(e) => return Failure(e)
 		}
-		typename match {
-			case Some(_) =>
-			case None => Failure(new IllegalArgumentException("Expected TYPE"))
+
+		tokens(2).text match {
+			case ";" => Success(VarDeclNode(tokens(0).text, tokens(1).text))
+			case "[" => readVarDeclArray(stream)
+			case "(" => readFunDecl(stream)
+			case _ => Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected ';,[,(' but found ${tokens(2).text}"))
 		}
-		if (stream.empty) Failure(new IllegalArgumentException("Expected IDENTIFIER but stream is empty"))
-		val identifier = stream.extractIf(_.tok == TokenType.IDENTIFIER)
-		stream.peek match {
-			case Some(tok) =>
-				if (tok.tok != TokenType.TYPE) {
-					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected TYPE, but found ${tok.tok}"))
-				}
-				typename = tok.text
-			case None => Failure(new IllegalArgumentException(s"Expected TYPE, but stream is empty"))
+	}
+
+	def readVarDeclArray(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, puncToken: Option[Token] = None): Try[VarDeclNode] = {
+		// TYPE ID [ NUM ]
+
+		var tokens: Array[Token] = null
+		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (puncToken, TokenType.PUNCTUATION), (None, TokenType.INT), (None, TokenType.PUNCTUATION), (None, TokenType.PUNCTUATION))) match {
+			case Success(seq) => tokens = seq
+			case Failure(e) => return Failure(e)
 		}
-		stream.extract
-		// match ID
-		stream.peek match {
-			case Some(tok) =>
-				if (tok.tok != TokenType.IDENTIFIER) {
-					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected IDENTIFIER, but found ${tok.tok}"))
-				}
-				identifier = tok.text
-			case None => Failure(new IllegalArgumentException("Expected IDENTIFIER, but stream is empty"))
-		}
-		stream.extract
-		// match PUNCTUATION
-		stream.peek match {
-			case Some(tok) =>
-				if (tok.tok != TokenType.PUNCTUATION) {
-					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \'(, [, or ;\' but found ${tok.tok}"))
-				}
-				tok.text match {
-					case ";" => stream.extract; Success(VarDeclNode(typename, identifier))
-					case "[" => stream.extract; readVarDeclArray(typename, identifier, stream)
-					case "(" => stream.extract; readFunDecl(typename, identifier, stream)
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \'(, [, or ;\' but found \'${tok.text}\'"))
-				}
-			case None => Failure(new IllegalArgumentException(s"Expected (, [, or ; but stream is empty"))
-		}
+
+		if (tokens(2).text != "[") return Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected '[' but found ${tokens(2).text}"))
+		if (tokens(4).text != "]") return Failure(new IllegalArgumentException(s"Line ${tokens(4).line}: Expected ']' but found ${tokens(4).text}"))
+		if (tokens(5).text != ";") return Failure(new IllegalArgumentException(s"Line ${tokens(5).line}: Expected ';' but found ${tokens(5).text}"))
+		Success(VarDeclNode(tokens(0).text, tokens(1).text, Some(tokens(3).text.toInt)))
+	}
+
+	def readFunDecl(stream: TokStream, typename: String = "", identifier: String = ""): Try[FunDeclNode] = {
+		// TYPE ID ( param... )
+
+		Failure(new IllegalArgumentException("not implemented yet"))
 	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {

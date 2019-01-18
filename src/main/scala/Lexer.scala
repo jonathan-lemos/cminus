@@ -86,7 +86,7 @@ object Lexer {
 	  * The tokens in the list can only be followed by a non word character or end of line.
 	  * Group 1 - Captures anything in the iterable. This is case sensitive.
 	  * Group 2 - The rest of the string.
-	  * For example {"abc", "def", "()["} turns into {{{ "^(abc\\b|def\\v|\(\)\[\\b)(.*)$" }}}
+	  * For example {"abc", "def", "()["} turns into {{{ ^(abc\b|def\b|\(\)\[\b)(.*)$" }}}
 	  *
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
@@ -111,26 +111,31 @@ object Lexer {
 
 		/**
 		  * Matches floats.
-		  * Examples:     "0.2", "-2.0", "03203.20390", "1.4e19", "-1.4e-19"
-		  * Non-examples: "2", "2.", ".2", "2.0e19.4"
+		  * Matches: "2.0", "0.2", "-2.0", "+2.0", "-2.0e+14", "-02.040E-14", "2e14"
+		  * Does not match: ".2", "2.", "2.4.3", "23", "0..2"
 		  * Group 1 - A float literal.
 		  * Group 2 - The rest of the string
 		  *
 		  * {{{
-		  * [-+]                                         - Matches a plus or a minus.
-		  * [-+]?                                        - Matches an optional plus or minus.
-		  * [0-9]                                        - Matches a numeric character.
-		  * [0-9]+                                       - Matches one or more numeric characters.
-		  * \.                                           - Matches a literal period (. matches any character, "\\" is a literal backslash that escapes it).
-		  * [0-9]+\.[0-9]+                               - Matches one or more numeric characters with a period in the middle followed by one or more numeric characters.
-		  * [eE]                                         - Matches "e" or "E"
-		  * [eE][-+]?[0-9]+                              - Matches "e" or "E" followed by an optional plus or minus followed by one or more numeric characters.
-		  * ([eE][-+]?[0-9]+)?                           - Matches scientific notation suffix optionally.
-		  * ^([-+]?[0-9]+\.[0-9]+([eE][-+]?[0-9]+)?(.*)$ - Matches an optional plus or minus followed by a set of numbers with a period in the middle followed by optional scientific notation suffix.
+		  * [-+]                                             - Matches a plus or a minus.
+		  * [-+]?                                            - Matches an optional plus or minus.
+		  * \d                                               - Matches a numeric character (same as [0-9]).
+		  * \d+                                              - Matches one or more numeric characters.
+		  * (?:...)                                          - Non-capturing group. Groups regex without capturing what's inside.
+		  * \.                                               - Matches a literal period (. matches any character, "\" is a literal backslash that escapes it).
+		  * (?:\.\d+)                                        - Matches a literal period followed by one or more digits.
+		  * (?:\.\d+)?                                       - Optionally matches a literal period followed by one or more digits.
+		  * [eE]                                             - Matches "e" or "E"
+		  * [eE][-+]?\d+                                     - Matches "e" or "E" followed by an optional plus or minus followed by one or more numeric characters (scientific notation).
+		  * |                                                - Regex OR
+		  * (?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))                - Matches either an optional period + one or more digits followed by scientific notation or a required period followed by one or more digits.
+		  *                                                    In other words the period and following digits are only optional if scientific notation is used.
+		  * (.*)                                             - Captures any character 0 or more times
+		  * ^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$ - Captures an optional plus or minus followed by digits with a period in the middle, or if scientific notation is used, the period is optional. The next group captures the rest of the string.
 		  *
 		  * }}}
 		  */
-		(TokenType.FLOAT, """^([-+]?[0-9]+\.[0-9]+([eE][-+]?[0-9]+)?(.*)$""")
+		(TokenType.FLOAT, """^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$""".r),
 
 		/**
 		  * Matches identifiers, which are strings of upper/lower case letters with optional underscores.
@@ -152,25 +157,21 @@ object Lexer {
 		(TokenType.IDENTIFIER, """^([A-Za-z_]+)(.*)$""".r),
 
 		/**
-		  * Matches numbers, which are strings of numbers with an optional period in the middle.
-		  * Group 1 - An integer or a float literal.
+		  * Matches integers, which are strings of digits.
+		  * Group 1 - An integer literal.
 		  * Group 2 - The rest of the string
 		  *
 		  * {{{
-		  * [0-9]                         - Matches a numeric character.
-		  * [0-9]+                        - Matches one or more numeric characters.
-		  * \.                            - Matches a literal period (. matches any character, "\\" is a literal backslash that escapes it).
-		  * \.?                           - Matches 0 or 1 literal periods.
-		  * [0-9]+\.?                     - Matches one or more numeric characters followed by an optional literal period.
-		  * [0-9]+\.?[0-9]+               - Matches one or more numeric characters followed by an optional literal period followed by one or more numeric characters.
-		  * |                             - Regex OR. Has the lowest precedence of all regex operators.
-		  * [0-9]+\.?[0-9]+|[0-9]         - Matches either a number followed by an optional period followed by a number, or a single number.
-		  *                                 The first regex will not match a single number, so a second one is needed to cover it.
-		  * (.*)$                         - Captures a group of any character until the end of the string.
-		  * ^([0-9]+\.?[0-9]+|[0-9])(.*)$ - Captures a number with an optional period in the middle, and in a seperate group captures the rest of the string.
+		  * [0-9]          - Matches a numeric digit
+		  * [0-9]+         - Matches one or more numeric digits
+		  * ([0-9]+)       - Captures one or more numeric digits
+		  * .              - Matches any character
+		  * .*             - Matches 0 or more of any character
+		  * (.*)           - Captures 0 or more of every character.
+		  * ^([0-9]+)(.*)$ - Captures 1 or more digits followed by another capture of the rest of the string.
 		  * }}}
 		  */
-		(TokenType.NUMBER, """^([0-9]+\.?[0-9]+|[0-9])(.*)$""".r),
+		(TokenType.INT, """^([0-9]+)(.*)$""".r),
 	)
 
 	/**

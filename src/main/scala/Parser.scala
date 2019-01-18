@@ -4,61 +4,123 @@ import scala.util.{Failure, Success, Try}
 
 class ParseTree //TODO
 
-object ASTType extends Enumeration {
-	val ASSIGNMENT_EXPRESSION, ADDITIVE_EXPRESSION, CALL, COMPOUND_STATEMENT, EXPRESSION_STATEMENT, EXPRESSION, FACTOR, FUNDECL, IF, ITERATION_STATEMENT, NUMBER, PARAM, PROGRAM, RELOP_EXPRESSION, RETURN_STATEMENT, SELECTION_STATEMENT, SIMPLE_EXPRESSION, STATEMENT, TERM, VARDECL, VARIABLE, WHILE = Value
-}
-
 /**
   * CFG for this language:
   *
   */
 
-case class   ASTNode(typ: ASTType.Value)
-case class   ProgramNode(declarations: Seq[Declaration])                                                             extends ASTNode(ASTType.PROGRAM)
+sealed trait ASTNode
+case class   ProgramNode(declarations: Seq[Declaration])                                                             extends ASTNode
 sealed trait Declaration
-case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None)                         extends ASTNode(ASTType.VARDECL) with Declaration
-case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: Seq[Statement])       extends ASTNode(ASTType.FUNDECL) with Declaration
-case class   ParamNode(typename: String, identifier: String)                                                         extends ASTNode(ASTType.PARAM)
+case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None)                         extends ASTNode with Declaration
+case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: Seq[Statement])       extends ASTNode with Declaration
+case class   ParamNode(typename: String, identifier: String)                                                         extends ASTNode
 sealed trait Statement
-case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement]) extends ASTNode(ASTType.SELECTION_STATEMENT) with Statement
-case class   IterationStatementNode(condition: Expression, statement: Statement)                                     extends ASTNode(ASTType.ITERATION_STATEMENT) with Statement
-case class   ReturnStatementNode(expression: Option[Expression])                                                     extends ASTNode(ASTType.RETURN_STATEMENT) with Statement
-case class   ExpressionStatementNode(expression: Option[Expression])                                                 extends ASTNode(ASTType.EXPRESSION_STATEMENT) with Statement
+case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement]) extends ASTNode with Statement
+case class   IterationStatementNode(condition: Expression, statement: Statement)                                     extends ASTNode with Statement
+case class   ReturnStatementNode(expression: Option[Expression])                                                     extends ASTNode with Statement
+case class   ExpressionStatementNode(expression: Option[Expression])                                                 extends ASTNode with Statement
 sealed trait Expression
-case class   AssignmentExpressionNode(identifier: String, right: Expression)                                         extends ASTNode(ASTType.ASSIGNMENT_EXPRESSION) with Expression
-case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                   extends ASTNode(ASTType.SIMPLE_EXPRESSION) with Expression
-case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])      extends ASTNode(ASTType.RELOP_EXPRESSION) with Expression
-case class   AdditiveExpressionNode(left: Option[(AdditiveExpressionNode, String)], right: TermNode)                 extends ASTNode(ASTType.ADDITIVE_EXPRESSION) with Expression
-case class   TermNode(left: Option[(TermNode, String)], right: FactorNode)                                           extends ASTNode(ASTType.TERM) with Expression
-case class   CallNode(identifier: String, args: Expression)                                                          extends ASTNode(ASTType.CALL) with Expression with Factor
+case class   AssignmentExpressionNode(identifier: String, right: Expression)                                         extends ASTNode with Expression
+case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                   extends ASTNode with Expression
+case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])      extends ASTNode with Expression
+case class   AdditiveExpressionNode(left: Option[(AdditiveExpressionNode, String)], right: TermNode)                 extends ASTNode with Expression
+case class   TermNode(left: Option[(TermNode, String)], right: FactorNode)                                           extends ASTNode with Expression
+case class   CallNode(identifier: String, args: Expression)                                                          extends ASTNode with Expression with Factor
 sealed trait Factor
-case class   FactorNode(factor: Expression)                                                                          extends ASTNode(ASTType.FACTOR) with Expression with Factor
-case class   NumberNode(num: String)                                                                                 extends ASTNode(ASTType.NUMBER) with Expression with Factor
+case class   FactorNode(factor: Expression)                                                                          extends ASTNode with Expression with Factor
+case class   NumberNode(num: String)                                                                                 extends ASTNode with Expression with Factor
 
-class TokStream(private val tok: Seq[Token]) {
-	private val str = tok.to[ListBuffer[Token]]
-	def peek: Option[Token] = str.headOption
-	def extract: Token = {
+/**
+  * A stream of tokens that can be advanced.
+  */
+trait TokStream {
+	/**
+	  * Gets the next element in the stream without advancing it.
+	  * Prefer peekOption() to this method.
+	  * @return The next Token in the stream.
+	  * @throws IllegalStateException The stream is empty.
+	  */
+	def peek: Token
+
+	/**
+	  * Gets the next element in the stream if it exists without advancing it.
+	  * @return Some(Token) if there's an element in the stream, None if not.
+	  */
+	def peekOption: Option[Token]
+
+	/**
+	  * Extracts the next element in the stream.
+	  * Prefer extractIf() to this method.
+	  *
+	  * @return The next token in the stream.
+	  * @throws IllegalStateException The stream is empty.
+	  */
+	def extract: Token
+
+	/**
+	  * Extracts the next element if the given condition is true.
+	  *
+	  * @param cond
+	  *             True  - Extract the token and advance the stream.
+	  *             False - Leave the stream as-is.
+	  * @return Success(Token)                    - The condition was matched.
+	  *         Failure(IllegalArgumentException) - The condition was not matched.
+	  *         Failure(IllegalStateException)    - The stream is empty.
+	  */
+	def extractIf(typ: TokenType.Value): Try[Token]
+
+	/**
+	  * Checks if the stream has an element in it.
+	  * @return True if there's at least one element in the stream, false if not.
+	  */
+	def nonEmpty: Boolean
+
+	/**
+	  * Checks if the stream is empty.
+	  * @return True if the stream is empty, false if not.
+	  */
+	def empty: Boolean
+
+	/**
+	  * Advances the stream until the line number in the Tokens increases.
+	  */
+	def skipLine(): Unit
+}
+
+class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
+	private val str: ListBuffer[Token] = tok.to[ListBuffer]
+	override def peek: Token = str.head
+
+	override def peekOption: Option[Token] = str.headOption
+
+	override def extract: Token = {
 		if (this.empty) {
-			throw new IllegalArgumentException("This TokStream is empty")
+			throw new IllegalStateException("This TokStream is empty")
 		}
 		val ret = str.head
 		str.remove(0)
-		Some(ret)
+		ret
 	}
-	def extractOption: Option[Token] = {
-		if (this.empty) {
-			None
+
+	override def extractIf(): Try[Token] = {
+		this.peekOption match {
+			case Some(token) if cond(token) => Success(this.extract)
+			case Some(token) => Failure()
+			case _ => None
 		}
-		val ret = str.head
-		str.remove(0)
-		Some(ret)
 	}
-	def nonEmpty: Boolean = str.nonEmpty
-	def empty: Boolean = str.isEmpty
-	def skipLine: Unit = {
+
+	override def nonEmpty: Boolean = str.nonEmpty
+
+	override def empty: Boolean = str.isEmpty
+
+	override def skipLine(): Unit = {
 		if (this.empty) return
-		while (this.peek.nonEmpty)
+		val line = str.head.line
+		while (this.nonEmpty && str.head.line == line) {
+			this.extract
+		}
 	}
 }
 
@@ -91,24 +153,63 @@ object Parser {
 		("arg-list", "arg-list , expression|expression"),
 	)
 
+	def getToken(stream: TokStream, token: Option[Token], expected: TokenType.Value): Try[Token] = {
+		token match {
+			case Some(tok) if tok.tok == expected => Success(tok)
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected $expected but found ${tok.text}"))
+			case None =>
+				if (stream.empty) Failure(new IllegalArgumentException(s"Expected $expected but end of stream was reached"))
+				stream.extractIf(_.tok == expected) match {
+					case Some(tok) => Success(tok)
+					case None =>
+				}
+		}
+	}
+
 	def readCompoundStmt(stream: TokStream): Try[Seq[Statement]] = {
-
+		Failure(new IllegalArgumentException("not implemented yet"))
 	}
 
-	def readFunDecl(typename: String, identifier: String, stream: TokStream): Try[FunDeclNode] = {
+	def readParam(stream: TokStream): Try[ParamNode] = {
+		// need to read TYPE ID ; | TYPE ID [ ] ;
+		var typename = ""
+		var identifier = ""
+		// TYPE
+		stream.peek match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.TYPE => typename = tok.text
+					case _ 	=> Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected TYPE but found ${tok.tok}"))
+				}
+			case None => Failure(new IllegalArgumentException(s"Expected TYPE but stream is empty"))
+		}
+		stream.extract
 
+		stream.peek match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.
+				}
+		}
+		ParamNode("", "")
 	}
 
-	def readVarDeclArray(typename: String, identifier: String, stream: TokStream): Try[VarDeclNode] = {
+	def readFunDecl(stream: TokStream, typename: String = "", identifier: String = ""): Try[FunDeclNode] = {
+		// remaining tokens to match are params ) compound-stmt
+
+		Failure(new IllegalArgumentException("not implemented yet"))
+	}
+
+	def readVarDeclArray(stream: TokStream, typename: String = "", identifier: String = ""): Try[VarDeclNode] = {
 		// remaining tokens to match are NUM ]
 
-		var num = 0.0
+		var num = 0
 		// match NUM
 		stream.peek match {
 			case Some(tok) =>
 				tok.tok match {
-					case TokenType.NUMBER => try { num = tok.text.toInt } catch { case e: NumberFormatException => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INTEGER, but found \"${tok.text}\""))}
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected NUMBER, but found ${tok.tok}"))
+					case TokenType.INT => try { num = tok.text.toInt } catch { case e: NumberFormatException => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INTEGER, but found \'${tok.text}\'"))}
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected INT, but found ${tok.tok}"))
 				}
 			case None => Failure(new IllegalArgumentException(s"Expected NUMBER, but stream is empty"))
 		}
@@ -118,26 +219,43 @@ object Parser {
 		stream.peek match {
 			case Some(tok) =>
 				tok.tok match {
-					case TokenType.PUNCTUATION =>
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \"]\" but found ${tok.tok}"))
+					case TokenType.PUNCTUATION => ;
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \']\' but found ${tok.tok}"))
 				}
-			case None => Failure(new IllegalArgumentException(s"Expected \"]\", but stream is empty"))
+			case None => Failure(new IllegalArgumentException(s"Expected \']\', but stream is empty"))
 		}
 
 		val next = stream.extract
 		next.text match {
-			case "]" => Success(VarDeclNode(typename, identifier, num))
-			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \"]\", but found \"${next.text}\""))
+			case "]" => Success(VarDeclNode(typename, identifier, Some(num)))
+			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \']\', but found \'${next.text}\'"))
 		}
 	}
 
-	def readDeclaration(stream: TokStream): Try[Declaration] = {
-		var typename: String = ""
-		var identifier: String = ""
-
+	def readDeclaration(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None): Try[Declaration] = {
 		// all declarations start with TYPE ID PUNCTUATION, so we attempt to match those first
 
 		// match TYPE
+		if (stream.empty) Failure(new IllegalArgumentException("Expected TYPE but stream is empty"))
+		var typename = ""
+		typeToken match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.TYPE => typename = tok.text
+					case _ => Failure(new IllegalArgumentException("typeToken parameter must have TYPE type"))
+				}
+			case None =>
+				stream.extractIf(_.tok == TokenType.TYPE) match {
+					case Some(tok) => typename = tok.text
+					case _ => Failure(new IllegalArgumentException("Expected TYPE"))
+				}
+		}
+		typename match {
+			case Some(_) =>
+			case None => Failure(new IllegalArgumentException("Expected TYPE"))
+		}
+		if (stream.empty) Failure(new IllegalArgumentException("Expected IDENTIFIER but stream is empty"))
+		val identifier = stream.extractIf(_.tok == TokenType.IDENTIFIER)
 		stream.peek match {
 			case Some(tok) =>
 				if (tok.tok != TokenType.TYPE) {
@@ -161,22 +279,20 @@ object Parser {
 		stream.peek match {
 			case Some(tok) =>
 				if (tok.tok != TokenType.PUNCTUATION) {
-					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \"(, [, or ;\" but found ${tok.tok}"))
+					Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \'(, [, or ;\' but found ${tok.tok}"))
+				}
+				tok.text match {
+					case ";" => stream.extract; Success(VarDeclNode(typename, identifier))
+					case "[" => stream.extract; readVarDeclArray(typename, identifier, stream)
+					case "(" => stream.extract; readFunDecl(typename, identifier, stream)
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected \'(, [, or ;\' but found \'${tok.text}\'"))
 				}
 			case None => Failure(new IllegalArgumentException(s"Expected (, [, or ; but stream is empty"))
-		}
-		// get the punctuation
-		val next = stream.extract
-		next.text match {
-			case ";" => Success(VarDeclNode(typename, identifier))
-			case "[" => readVarDeclArray(typename, identifier, stream)
-			case "(" => readFunDecl(typename, identifier, stream)
-			case _ => Failure(new IllegalArgumentException(s"Line ${next.line}: Expected \"(, [, or ;\" but found \"${next.text}\""))
 		}
 	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {
-		val stream = new TokStream(tok)
+		val stream: TokStream = new SeqTokStream(tok)
 		val decls = new ArrayBuffer[Declaration]
 
 		while (stream.nonEmpty) {
@@ -185,5 +301,7 @@ object Parser {
 				case Failure(e) =>
 			}
 		}
+
+		ProgramNode(Seq()) //TODO
 	}
 }

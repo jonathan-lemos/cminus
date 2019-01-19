@@ -162,7 +162,7 @@ object Parser {
 		}
 	}
 
-	def getTokens(stream: TokStream, tokens: Seq[(Option[Token], TokenType.Value)]): Try[Array[Token]] = {
+	def getTokens(stream: TokStream, tokens: Seq[(Option[Token], TokenType.Value)]): Try[Seq[Token]] = {
 		val ret: ArrayBuffer[Token] = new ArrayBuffer
 		for ((tok, expected) <- tokens) {
 			getTokenType(stream, tok, expected) match {
@@ -176,16 +176,16 @@ object Parser {
 	def readDeclaration(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None): Try[Declaration] = {
 		// all declarations start with TYPE ID PUNCTUATION, so we attempt to match those first
 
-		var tokens: Array[Token] = null
+		var tokens: Seq[Token] = null
 		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (None, TokenType.PUNCTUATION))) match {
 			case Success(seq) => tokens = seq
 			case Failure(e) => return Failure(e)
 		}
 
 		tokens(2).text match {
-			case ";" => Success(VarDeclNode(tokens(0).text, tokens(1).text))
-			case "[" => readVarDeclArray(stream)
-			case "(" => readFunDecl(stream)
+			case ";" => Success(VarDeclNode(tokens.head.text, tokens(1).text))
+			case "[" => readVarDeclArray(stream, Some(tokens.head), Some(tokens(1)), Some(tokens(2)))
+			case "(" => readFunDecl(stream, Some(tokens.head), Some(tokens(1)), Some(tokens(2)))
 			case _ => Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected ';,[,(' but found ${tokens(2).text}"))
 		}
 	}
@@ -193,22 +193,94 @@ object Parser {
 	def readVarDeclArray(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, puncToken: Option[Token] = None): Try[VarDeclNode] = {
 		// TYPE ID [ NUM ]
 
-		var tokens: Array[Token] = null
+		var tokens: Seq[Token] = null
 		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (puncToken, TokenType.PUNCTUATION), (None, TokenType.INT), (None, TokenType.PUNCTUATION), (None, TokenType.PUNCTUATION))) match {
 			case Success(seq) => tokens = seq
 			case Failure(e) => return Failure(e)
 		}
 
-		if (tokens(2).text != "[") return Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected '[' but found ${tokens(2).text}"))
-		if (tokens(4).text != "]") return Failure(new IllegalArgumentException(s"Line ${tokens(4).line}: Expected ']' but found ${tokens(4).text}"))
-		if (tokens(5).text != ";") return Failure(new IllegalArgumentException(s"Line ${tokens(5).line}: Expected ';' but found ${tokens(5).text}"))
-		Success(VarDeclNode(tokens(0).text, tokens(1).text, Some(tokens(3).text.toInt)))
+		if (tokens(2).text != "[") Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected '[' but found ${tokens(2).text}"))
+		if (tokens(4).text != "]") Failure(new IllegalArgumentException(s"Line ${tokens(4).line}: Expected ']' but found ${tokens(4).text}"))
+		if (tokens(5).text != ";") Failure(new IllegalArgumentException(s"Line ${tokens(5).line}: Expected ';' but found ${tokens(5).text}"))
+		Success(VarDeclNode(tokens.head.text, tokens(1).text, Some(tokens(3).text.toInt)))
 	}
 
-	def readFunDecl(stream: TokStream, typename: String = "", identifier: String = ""): Try[FunDeclNode] = {
-		// TYPE ID ( param... )
+	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, puncToken: Option[Token] = None): Try[FunDeclNode] = {
+		// TYPE ID ( param... ) COMPOUND-STATEMENT
 
-		Failure(new IllegalArgumentException("not implemented yet"))
+		var tokens: Seq[Token] = null
+		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (puncToken, TokenType.PUNCTUATION))) match {
+			case Success(seq) => tokens = seq
+			case Failure(e) => return Failure(e)
+		}
+
+		if (tokens(2).text != "(") Failure(new IllegalArgumentException(s"Line ${tokens(2).line}: Expected '(' but found ${tokens(2).text}"))
+		var paramlist: Seq[ParamNode] = null
+		readParamList(stream, Some(tokens(2))) match {
+			case Success(seq) => paramlist = seq
+			case Failure(e) => return Failure(e)
+		}
+
+		getTokenType(stream, None, TokenType.PUNCTUATION) match {
+			case Success(tok) if tok.text == ";" =>
+			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ';' but found ${tok.text}"))
+			case Failure(e) => return Failure(e)
+		}
+
+		readCompoundStatement() match {
+
+		}
+	}
+
+	def readParamList(stream: TokStream, puncToken: Option[Token] = None): Try[Seq[ParamNode]] = {
+		val ret = new ArrayBuffer[ParamNode]
+
+		var openParen: Token = null
+		getTokenType(stream, puncToken, TokenType.PUNCTUATION) match {
+			case Success(tok) => openParen = tok
+			case Failure(e) => return Failure(e)
+		}
+
+		def shouldContinue: Boolean = stream.peekOption match {
+			case Some(tok) => tok.tok == TokenType.TYPE
+			case None => false
+		}
+
+		while (shouldContinue) {
+			readParam(stream) match {
+				case Success(tok) => ret += tok
+				case Failure(e) => return Failure(e)
+			}
+		}
+
+		Success(ret)
+	}
+
+	def readParam(stream: TokStream): Try[ParamNode] = {
+		var tokens: Array[Token] = null
+		getTokens(stream, Seq((None, TokenType.TYPE), (None, TokenType.IDENTIFIER))) match {
+			case Success(seq) => tokens = seq
+			case Failure(e) => return Failure(e)
+		}
+		stream.peekOption match {
+			case Some(tok) =>
+				tok.tok match {
+					case TokenType.PUNCTUATION =>
+						tok.text match {
+
+						}
+					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '[' or ',', but found ${tok.text}"))
+				}
+		}
+		Success(ParamNode(tokens(0).text, tokens(1).text))
+	}
+
+	def readCompoundStatement(stream: TokStream): Try[Seq[Statement]] = {
+
+	}
+
+	def readStatement(stream: TokStream): Try[Statement] = {
+
 	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {

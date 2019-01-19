@@ -6,7 +6,7 @@ import scala.util.matching.Regex
   * The types of tokens this Lexer can output.
   */
 object TokenType extends Enumeration {
-	val ADDOP, ASSGNOP, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, PUNCTUATION, RELOP, TYPE = Value
+	val ADDOP, ASSGNOP, CHUCK_E_CHEESE, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, PUNCTUATION, RELOP, TYPE = Value
 }
 
 /**

@@ -10,26 +10,26 @@ class ParseTree //TODO
   */
 
 sealed trait ASTNode
-case class   ProgramNode(declarations: Seq[Declaration])                                                             extends ASTNode
+case class   ProgramNode(declarations: Seq[Declaration])                                                                    extends ASTNode
 sealed trait Declaration
-case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None)                         extends ASTNode with Declaration
-case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: Seq[Statement])       extends ASTNode with Declaration
-case class   ParamNode(typename: String, identifier: String)                                                         extends ASTNode
+case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None)                                extends ASTNode with Declaration
+case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: Seq[Statement])              extends ASTNode with Declaration
+case class   ParamNode(typename: String, identifier: String)                                                                extends ASTNode
 sealed trait Statement
-case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement]) extends ASTNode with Statement
-case class   IterationStatementNode(condition: Expression, statement: Statement)                                     extends ASTNode with Statement
-case class   ReturnStatementNode(expression: Option[Expression])                                                     extends ASTNode with Statement
-case class   ExpressionStatementNode(expression: Option[Expression])                                                 extends ASTNode with Statement
+case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None) extends ASTNode with Statement
+case class   IterationStatementNode(condition: Expression, statement: Statement)                                            extends ASTNode with Statement
+case class   ReturnStatementNode(expression: Option[Expression])                                                            extends ASTNode with Statement
+case class   ExpressionStatementNode(expression: Option[Expression])                                                        extends ASTNode with Statement
 sealed trait Expression
-case class   AssignmentExpressionNode(identifier: String, right: Expression)                                         extends ASTNode with Expression
-case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                   extends ASTNode with Expression
-case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])      extends ASTNode with Expression
-case class   AdditiveExpressionNode(left: Option[(AdditiveExpressionNode, String)], right: TermNode)                 extends ASTNode with Expression
-case class   TermNode(left: Option[(TermNode, String)], right: FactorNode)                                           extends ASTNode with Expression
-case class   CallNode(identifier: String, args: Expression)                                                          extends ASTNode with Expression with Factor
+case class   AssignmentExpressionNode(identifier: String, right: Expression)                                                extends ASTNode with Expression
+case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                          extends ASTNode with Expression
+case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])             extends ASTNode with Expression
+case class   AdditiveExpressionNode(left: Option[(AdditiveExpressionNode, String)], right: TermNode)                        extends ASTNode with Expression
+case class   TermNode(left: Option[(TermNode, String)], right: FactorNode)                                                  extends ASTNode with Expression
+case class   CallNode(identifier: String, args: Expression)                                                                 extends ASTNode with Expression with Factor
 sealed trait Factor
-case class   FactorNode(factor: Expression)                                                                          extends ASTNode with Expression with Factor
-case class   NumberNode(num: String)                                                                                 extends ASTNode with Expression with Factor
+case class   FactorNode(factor: Expression)                                                                                 extends ASTNode with Expression with Factor
+case class   NumberNode(num: String)                                                                                        extends ASTNode with Expression with Factor
 
 /**
   * A stream of tokens that can be advanced.
@@ -233,6 +233,7 @@ object Parser {
 	}
 
 	def readParamList(stream: TokStream, puncToken: Option[Token] = None): Try[Seq[ParamNode]] = {
+		// param...
 		val ret = new ArrayBuffer[ParamNode]
 
 		var openParen: Token = null
@@ -257,31 +258,90 @@ object Parser {
 	}
 
 	def readParam(stream: TokStream): Try[ParamNode] = {
-		var tokens: Array[Token] = null
+		// TYPE ID | TYPE ID []
+
+		var tokens: Seq[Token] = null
 		getTokens(stream, Seq((None, TokenType.TYPE), (None, TokenType.IDENTIFIER))) match {
 			case Success(seq) => tokens = seq
 			case Failure(e) => return Failure(e)
 		}
 		stream.peekOption match {
-			case Some(tok) =>
-				tok.tok match {
-					case TokenType.PUNCTUATION =>
-						tok.text match {
-
-						}
-					case _ => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '[' or ',', but found ${tok.text}"))
-				}
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "[" =>
+			case Some(_) => stream.extract; Success(ParamNode(tokens.head.text, tokens(1).text))
+			case None => Success(ParamNode(tokens.head.text, tokens(1).text))
 		}
-		Success(ParamNode(tokens(0).text, tokens(1).text))
+		stream.extract
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "]" => stream.extract; Success(ParamNode(tokens.head.text, tokens(1).text))
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ']' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected ']' but end of stream reached"))
+		}
+		Success(ParamNode(tokens.head.text, tokens(1).text))
 	}
 
 	def readCompoundStatement(stream: TokStream): Try[Seq[Statement]] = {
+		val ret = new ArrayBuffer[Statement]
 
+		getTokenType(stream, None, TokenType.PUNCTUATION) match {
+			case Success(tok) if tok.text == "{" =>
+			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '{' but found ${tok.text}"))
+			case Failure(e) => return Failure(e)
+		}
+
+		def shouldContinue: Boolean = stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "}" => false
+			case Some(_) => true
+			case None => false
+		}
+
+		while (shouldContinue) {
+			readStatement(stream) match {
+				case Success(stmt) => ret += stmt
+				case Failure(e) => return Failure(e)
+			}
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "}" => stream.extract; Success(ret)
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '}' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException(s"Expected '}' but reached end of stream"))
+		}
 	}
 
 	def readStatement(stream: TokStream): Try[Statement] = {
-
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.KEYWORD => tok.text match {
+				case "if" =>
+			}
+		}
 	}
+
+	def readSelectionStatement(stream: TokStream, keywordToken: Option[Token]): Try[SelectionStatementNode] = {
+		var ifToken: Token = null
+		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
+			case Success(tok) => ifToken = tok
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" => stream.extract
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '(' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected '(' but found end of stream"))
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ")" => stream.extract
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ')' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected ')' but reached and of stream"))
+		}
+
+		readStatement(stream) match {
+			case Success(tok) => Success(SelectionStatementNode())
+			case Failure(e) => Failure(e)
+		}
+	}
+
+	def readExpression(stream: TokStream): Try[Expression]
 
 	def apply(tok: Seq[Token]): ProgramNode = {
 		val stream: TokStream = new SeqTokStream(tok)

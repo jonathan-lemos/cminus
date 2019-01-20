@@ -18,8 +18,8 @@ case class   ParamNode(typename: String, identifier: String)                    
 sealed trait Statement
 case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None) extends ASTNode with Statement
 case class   IterationStatementNode(condition: Expression, statement: Statement)                                            extends ASTNode with Statement
-case class   ReturnStatementNode(expression: Option[Expression])                                                            extends ASTNode with Statement
-case class   ExpressionStatementNode(expression: Option[Expression])                                                        extends ASTNode with Statement
+case class   ReturnStatementNode(expression: Option[Expression] = None)                                                     extends ASTNode with Statement
+case class   ExpressionStatementNode(expression: Option[Expression] = None)                                                 extends ASTNode with Statement
 sealed trait Expression
 case class   AssignmentExpressionNode(identifier: String, right: Expression)                                                extends ASTNode with Expression
 case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                          extends ASTNode with Expression
@@ -311,15 +311,16 @@ object Parser {
 	def readStatement(stream: TokStream): Try[Statement] = {
 		stream.peekOption match {
 			case Some(tok) if tok.tok == TokenType.KEYWORD => tok.text match {
-				case "if" =>
+				case "if" => readSelectionStatement(stream, Some(tok))
+				case "while" =>
 			}
 		}
 	}
 
 	def readSelectionStatement(stream: TokStream, keywordToken: Option[Token]): Try[SelectionStatementNode] = {
-		var ifToken: Token = null
 		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
-			case Success(tok) => ifToken = tok
+			case Success(tok) if tok.text == "if" =>
+			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'if' but found ${tok.text}"))
 			case Failure(e) => return Failure(e)
 		}
 
@@ -329,6 +330,54 @@ object Parser {
 			case None => Failure(new IllegalArgumentException("Expected '(' but found end of stream"))
 		}
 
+		var expression: Expression = null
+		readExpression(stream) match {
+			case Success(expr) => expression = expr
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ")" => stream.extract
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ')' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected ')' but reached and of stream"))
+		}
+
+		var statement: Statement = null
+		readStatement(stream) match {
+			case Success(stmt) => statement = stmt
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.KEYWORD && tok.text == "else" => stream.extract
+			case None => Success(SelectionStatementNode(expression, statement))
+		}
+
+		readStatement(stream) match {
+			case Success(stmt) => Success(SelectionStatementNode(expression, statement, Some(stmt)))
+			case Failure(e) => Failure(e)
+		}
+	}
+
+	def readIterationStatement(stream: TokStream, keywordToken: Option[Token]): Try[IterationStatementNode] = {
+		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
+			case Success(tok) if tok.text == "while" =>
+			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'while' but found ${tok.text}"))
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" => stream.extract
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '(' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected '(' but found end of stream"))
+		}
+
+		var expression: Expression = null
+		readExpression(stream) match {
+			case Success(expr) => expression = expr
+			case Failure(e) => return Failure(e)
+		}
+
 		stream.peekOption match {
 			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ")" => stream.extract
 			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ')' but found ${tok.text}"))
@@ -336,12 +385,39 @@ object Parser {
 		}
 
 		readStatement(stream) match {
-			case Success(tok) => Success(SelectionStatementNode())
+			case Success(stmt) => Success(IterationStatementNode(expression, stmt))
 			case Failure(e) => Failure(e)
 		}
 	}
 
-	def readExpression(stream: TokStream): Try[Expression]
+	def readReturnStatement(stream: TokStream, keywordToken: Option[Token]): Try[ReturnStatementNode] = {
+		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
+			case Success(tok) if tok.text == "return" =>
+			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'return' but found ${tok.text}"))
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ";" => stream.extract; Success(ReturnStatementNode())
+			case _ =>
+		}
+
+		var expression: Expression = null
+		readExpression(stream) match {
+			case Success(expr) => expression = expr
+			case Failure(e) => return Failure(e)
+		}
+
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ";" => stream.extract; Success(ReturnStatementNode(Some(expression)))
+			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ';' but found ${tok.text}"))
+			case None => Failure(new IllegalArgumentException("Expected ';' but reached end of stream"))
+		}
+	}
+
+	def readExpression(stream: TokStream): Try[Expression] = {
+
+	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {
 		val stream: TokStream = new SeqTokStream(tok)

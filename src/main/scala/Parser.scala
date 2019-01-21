@@ -20,7 +20,7 @@ case class   SelectionStatementNode(condition: Expression, ifStatement: Statemen
 case class   IterationStatementNode(condition: Expression, statement: Statement)                                            extends ASTNode with Statement
 case class   ReturnStatementNode(expression: Option[Expression] = None)                                                     extends ASTNode with Statement
 case class   ExpressionStatementNode(expression: Option[Expression] = None)                                                 extends ASTNode with Statement
-sealed trait Expression
+sealed trait Expression extends Factor
 case class   AssignmentExpressionNode(identifier: String, right: Expression)                                                extends ASTNode with Expression
 case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                          extends ASTNode with Expression
 case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])             extends ASTNode with Expression
@@ -205,11 +205,11 @@ object Parser {
 		Success(VarDeclNode(tokens.head.text, tokens(1).text, Some(tokens(3).text.toInt)))
 	}
 
-	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, puncToken: Option[Token] = None): Try[FunDeclNode] = {
+	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, pncToken: Option[Token] = None): Try[FunDeclNode] = {
 		// TYPE ID ( param... ) COMPOUND-STATEMENT
 
 		var tokens: Seq[Token] = null
-		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (puncToken, TokenType.PUNCTUATION))) match {
+		getTokens(stream, Seq((typeToken, TokenType.TYPE), (idToken, TokenType.IDENTIFIER), (pncToken, TokenType.PUNCTUATION))) match {
 			case Success(seq) => tokens = seq
 			case Failure(e) => return Failure(e)
 		}
@@ -221,14 +221,16 @@ object Parser {
 			case Failure(e) => return Failure(e)
 		}
 
+		var puncToken: Token = null
 		getTokenType(stream, None, TokenType.PUNCTUATION) match {
-			case Success(tok) if tok.text == ";" =>
+			case Success(tok) if tok.text == ";" => puncToken = tok
 			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ';' but found ${tok.text}"))
 			case Failure(e) => return Failure(e)
 		}
 
-		readCompoundStatement() match {
-
+		readCompoundStatement(stream, Some(puncToken)) match {
+			case Success(stmt) => Success(FunDeclNode(tokens.head.text, tokens(1).text, paramlist, stmt))
+			case Failure(e) => Failure(e)
 		}
 	}
 
@@ -279,10 +281,10 @@ object Parser {
 		Success(ParamNode(tokens.head.text, tokens(1).text))
 	}
 
-	def readCompoundStatement(stream: TokStream): Try[Seq[Statement]] = {
+	def readCompoundStatement(stream: TokStream, puncToken: Option[Token]): Try[Seq[Statement]] = {
 		val ret = new ArrayBuffer[Statement]
 
-		getTokenType(stream, None, TokenType.PUNCTUATION) match {
+		getTokenType(stream, puncToken, TokenType.PUNCTUATION) match {
 			case Success(tok) if tok.text == "{" =>
 			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '{' but found ${tok.text}"))
 			case Failure(e) => return Failure(e)
@@ -312,8 +314,10 @@ object Parser {
 		stream.peekOption match {
 			case Some(tok) if tok.tok == TokenType.KEYWORD => tok.text match {
 				case "if" => readSelectionStatement(stream, Some(tok))
-				case "while" =>
+				case "while" => readIterationStatement(stream, Some(tok))
+				case "return" => readReturnStatement(stream, Some(tok))
 			}
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "{" => readCompoundStatement(stream, Some(tok))
 		}
 	}
 
@@ -415,8 +419,28 @@ object Parser {
 		}
 	}
 
-	def readExpression(stream: TokStream): Try[Expression] = {
+	def readExpression(stream: TokStream): Try[Expression]
 
+	def readFactor(stream: TokStream): Try[FactorNode] = {
+		stream.peekOption match {
+			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" =>
+				var expression: Expression = null
+				readExpression(stream) match {
+					case Success(expr) =>
+						expression = expr
+						stream.peekOption match {
+							case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" =>
+
+						}
+					case Failure(e) => return Failure(e)
+				}
+			case Some(tok) if tok.tok == TokenType.IDENTIFIER =>
+				stream.extract
+				stream.peekOption match {
+					case Some(tok) if tok.tok == TokenType.PUNCTUATION =>
+
+				}
+		}
 	}
 
 	def apply(tok: Seq[Token]): ProgramNode = {

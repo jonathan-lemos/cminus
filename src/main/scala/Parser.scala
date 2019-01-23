@@ -3,13 +3,6 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks._
 
-class ParseTree //TODO
-
-/**
-  * CFG for this language:
-  *
-  */
-
 sealed trait ASTNode
 case class   ProgramNode(declarations: Seq[Declaration])                                                                    extends ASTNode
 sealed trait Declaration                                                                                                    extends ASTNode
@@ -25,13 +18,13 @@ case class   ExpressionStatementNode(expression: Option[Expression] = None)     
 sealed trait Factor                                                                                                         extends ASTNode
 sealed trait Expression                                                                                                     extends Factor
 case class   AssignmentExpressionNode(identifier: String, right: Expression)                                                extends Expression
-case class   SimpleExpressionNode(expression: Either[RelopExpressionNode, AdditiveExpressionNode])                          extends Expression
-case class   RelopExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)])             extends Expression
-case class   AdditiveExpressionNode(left: Option[(AdditiveExpressionNode, String)], right: TermNode)                        extends Expression
-case class   TermNode(left: Option[(TermNode, String)], right: FactorNode)                                                  extends Expression
-case class   CallNode(identifier: String, args: Expression)                                                                 extends Factor
-case class   FactorNode(factor: Expression)                                                                                 extends Factor
+case class   SimpleExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)     extends Expression
+case class   AdditiveExpressionNode(left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                 extends Expression
+case class   TermNode(left: Factor, right: Option[(String, TermNode)] = None)                                               extends Expression
+case class   CallNode(identifier: String, args: Seq[Expression])                                                            extends Factor
 case class   VarNode(identifier: String, arrayLen: Option[Int] = None)                                                      extends Factor
+case class   IntNode(value: Int)                                                                                            extends Factor
+case class   FloatNode(value: Int)                                                                                          extends Factor
 
 class ParseException(s: String) extends IllegalArgumentException(s)
 
@@ -43,7 +36,7 @@ trait TokStream {
 	  * Gets the next element in the stream without advancing it.
 	  * Prefer peekOption() to this method.
 	  * @return The next Token in the stream.
-	  * @throws IllegalStateException The stream is empty.
+	  * @throws ParseException The stream is empty.
 	  */
 	def peek: Token
 
@@ -54,34 +47,22 @@ trait TokStream {
 	def peekOption: Option[Token]
 
 	/**
-	  * Extracts the next element in the stream.
+	  * Extracts the next token in the stream.
 	  * Prefer extractIf() to this method.
 	  *
 	  * @return The next token in the stream.
-	  * @throws IllegalStateException The stream is empty.
+	  * @throws ParseException The stream is empty.
 	  */
 	def extract: Token
 
 	/**
-	  * Extracts a token if the given condition is true.
-	  * The stream is not advanced if it's false.
+	  * Extracts a sequence of ASTNodes if the given conditions are true.
+	  * The stream is not advanced if it is false.
 	  *
-	  * @param condition The condition to verify
+	  * @param conds The condition lambdas to apply.
+	  *              These can either take a token and return a boolean, or take this stream and return an optional ASTNode
 	  */
-	def extractIf(condition: Token => Boolean): Try[Token]
-
-	/**
-	  * Extracts tokens if the given lambdas are true.
-	  * Unless all lambdas evaluate to true, the stream is not advanced.
-	  *
-	  *
-	  */
-	def extractIf(cond: Token => Boolean, vargs: (Token => Boolean)*): Try[Seq[Token]]
-
-	/**
-	  * Returns tokens to the stream.
-	  */
-	def barf(s: Seq[Token]): Unit
+	def extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])]
 
 	/**
 	  * Checks if the stream has an element in it.
@@ -103,43 +84,88 @@ trait TokStream {
 
 class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 	private val str: ListBuffer[Token] = tok.to[ListBuffer]
-	override def peek: Token = str.head
+	private var preserve: Boolean = false
+	private var preserveIndex: Int = 0
 
-	override def peekOption: Option[Token] = str.headOption
+	override def peek: Token = preserve match {
+		case true if preserveIndex < str.length => str(preserveIndex)
+		case false if str.nonEmpty => str.head
+		case _ => throw new ParseException("Stream is empty")
+	}
 
-	override def extract: Token = {
-		if (this.empty) {
-			throw new IllegalStateException("This TokStream is empty")
-		}
-		val ret = str.head
-		str.remove(0)
+	override def peekOption: Option[Token] = preserve match {
+		case true if preserveIndex < str.length => Some(str(preserveIndex))
+		case false if str.nonEmpty => Some(str.head)
+		case _ => None
+	}
+
+	override def extract: Token = preserve match {
+		case true if preserveIndex < str.length => val ret = this.peek; preserveIndex += 1; ret
+		case false if str.nonEmpty => val ret = this.peek; str.remove(0); ret
+		case _ => throw new ParseException("Stream is empty")
+	}
+
+	private def startPreserve(): Unit = {
+		this.preserve = true
+	}
+
+	private def finishPreserve(): Seq[Token] = {
+		val ret = this.str.slice(0, preserveIndex)
+		this.preserve = false
+		this.preserveIndex = 0
+		this.str.remove(0, preserveIndex)
 		ret
 	}
 
-	override def extractIf(cond: Token => Boolean): Try[Token] = {
-		if (this.empty) Failure(new ParseException("Stream is empty"))
-		if (cond(str.head)) Success(this.extract) else Failure(new ParseException("Condition was not matched"))
-	}
-
-	override def extractIf(cond: Token => Boolean, vargs: (Token => Boolean)*): Try[Seq[Token]] = {
-		val arr = ArrayBuffer[Token => Boolean](cond)
-		arr ++= vargs
-		if (this.str.length < arr.length) Failure(new ParseException(s"Expected ${arr.length} elements but stream only has ${str.length} elements"))
-		for ((c, i) <- arr.zipWithIndex) {
-			if (!c(this.str(i))) Failure(new ParseException(s"Condition $i failed"))
+	override def extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
+		val tokens = new ArrayBuffer[Token]
+		val rettok = new ArrayBuffer[Token]
+		val ret = new ArrayBuffer[ASTNode]
+		for (_ <- conds) {
+			case _ if this.empty =>
+				this.barf(tokens)
+				Failure(new ParseException("End of stream"))
+			case (f: (Token => Boolean), vararg: Boolean) =>
+				def m: Try[Unit] = {
+					if (f(this.peek)) {
+						val t = this.extract
+						tokens += t
+						rettok += t
+						Success()
+					}
+					else {
+						Failure(new ParseException(this.peek.text))
+					}
+				}
+				if (vararg) while (m.isSuccess) {} else m match {
+					case Success(_) =>
+					case Failure(e) => this.barf(tokens); Failure(e)
+				}
+			case (f: (TokStream => Try[ASTNode]), vararg: Boolean) =>
+				def m: Try[Unit] = {
+					this.startPreserve()
+					val res = f(this)
+					tokens ++= this.finishPreserve()
+					res match {
+						case Success(node) => ret += node; Success()
+						case Failure(e) => Failure(e)
+					}
+				}
+				if (vararg) while (m.isSuccess) {} else m match {
+					case Success(_) =>
+					case Failure(e) => this.barf(tokens); Failure(e)
+				}
 		}
-		val buf = new ArrayBuffer[Token]
-		arr.indices.foreach(buf += this.extract)
-		Success(buf)
+		Success((rettok, ret))
 	}
 
-	override def barf(c: Seq[Token]): Unit = {
+	private def barf(c: Seq[Token]): Unit = {
 		str.insertAll(0, c)
 	}
 
-	override def nonEmpty: Boolean = str.nonEmpty
+	override def nonEmpty: Boolean = !this.empty
 
-	override def empty: Boolean = str.isEmpty
+	override def empty: Boolean = if (preserve) this.preserveIndex < this.str.length else this.str.isEmpty
 
 	override def skipLine(): Unit = {
 		if (this.empty) return
@@ -179,250 +205,326 @@ object Parser {
 		("arg-list", "arg-list , expression|expression"),
 	)
 
-	def readDeclaration(stream: TokStream): Try[(Declaration, Seq[Token])] = {
+	def readDeclaration(stream: TokStream): Try[Declaration] = {
 		// var-declaration | fun-declaration
-		readVarDecl(stream).orElse(readFunDecl(stream))
+		readVarDecl(stream) orElse readFunDecl(stream)
 	}
 
-	def readVarDecl(stream: TokStream): Try[(VarDeclNode, Seq[Token])] = {
+	def readVarDecl(stream: TokStream): Try[VarDeclNode] = {
 		// TYPE ID ;|TYPE ID [ INT ] ;
-		stream.extractIf(
-			_.tok == TokenType.TYPE,
-			_.tok == TokenType.IDENTIFIER,
-			t => t.tok == TokenType.PUNCTUATION && t.text == ";",
-		).orElse(stream.extractIf(
-			_.tok == TokenType.TYPE,
-			_.tok == TokenType.IDENTIFIER,
-			t => t.tok == TokenType.PUNCTUATION && t.text == "[",
-			_.tok == TokenType.INT,
-			t => t.tok == TokenType.PUNCTUATION && t.text == "]",
-			t => t.tok == TokenType.PUNCTUATION && t.text == ";",
-		)) match {
-			case Success(seq) if seq.length == 3 => Success(VarDeclNode(seq.head.text, seq(1).text), seq)
-			case Success(seq) => Success(VarDeclNode(seq.head.text, seq(1).text, Some(seq(4).text.toInt)), seq)
-		}
-	}
 
-	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, pncToken: Option[Token] = None): Try[(FunDeclNode, Seq[Token])] = {
-		// TYPE ID ( param... ) COMPOUND-STATEMENT
-		val eaten = new ArrayBuffer[Token]
-		val params = new ArrayBuffer[ParamNode]
 		stream.extractIf(
-			_.tok == TokenType.TYPE,
-			_.tok == TokenType.IDENTIFIER,
-			t => t.tok == TokenType.PUNCTUATION && t.text == "(",
+			// TYPE ID ;
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ";"), false),
+		) orElse stream.extractIf(
+			// TYPE ID [ INT ]
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "["), false),
+			(Left(_.tok == TokenType.INT), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "]"), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ";"), false),
 		) match {
-			case Success(seq) => eaten ++= seq
-			case Failure(e) => return Failure(e)
-		}
-
-		while (true) {
-			readParam(stream) match {
-				case Success((par, tokseq)) => params += par; eaten ++= tokseq
-				case Failure(_) => break;
-			}
-			stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ",") match {
-				case Success(tok) => eaten += tok
-				case Failure(_) => break;
-			}
-		}
-
-		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ")") match {
-			case Success(tok) => eaten += tok
-			case Failure(e) => stream.barf(eaten); return Failure(e)
-		}
-
-		readCompoundStatement(stream) match {
-			case Success(seq) => Success(FunDeclNode())
+			case Success((seq, _)) if seq.length == 3 => Success(VarDeclNode(seq.head.text, seq(1).text))
+			case Success((seq, _)) => Success(VarDeclNode(seq.head.text, seq(1).text, Some(seq(4).text.toInt)))
+			case Failure(e) => Failure(new ParseException(s"Expected var-decl but found illegal token ${e.getMessage}"))
 		}
 	}
 
-	def readParam(stream: TokStream): Try[(ParamNode, Seq[Token])] = {
-		// TYPE ID | TYPE ID []
+	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, pncToken: Option[Token] = None): Try[FunDeclNode] = {
+		// TYPE ID ( param... ) COMPOUND-STATEMENT
 		stream.extractIf(
-			_.tok == TokenType.TYPE,
-			_.tok == TokenType.IDENTIFIER,
-			t => t.tok == TokenType.PUNCTUATION && t.text == "[",
-			t => t.tok == TokenType.PUNCTUATION && t.text == "]",
-		).orElse(stream.extractIf(
-			_.tok == TokenType.TYPE,
-			_.tok == TokenType.IDENTIFIER
-		)) match {
-			case Success(seq) => Success((ParamNode(seq.head.text, seq(1).text, seq.length == 4), seq))
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "("), false),
+			(Right(readParamComma), true),
+			(Right(readParam), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ")"), false),
+			(Right(readCompoundStatement), false),
+		) orElse stream.extractIf(
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "("), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ")"), false),
+			(Right(readCompoundStatement), false),
+		) match {
+			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
 			case Failure(e) => Failure(e)
 		}
 	}
 
-	def readCompoundStatement(stream: TokStream): Try[(CompoundStatementNode, Seq[Token])] = {
-		// { var-declaration... statement... }
-		val tokens = new ArrayBuffer[Token]
-		val vardecls = new ArrayBuffer[VarDeclNode]
-		val statements = new ArrayBuffer[Statement]
-
-		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == "{") match {
-			case Success(tok) => tokens += tok
-			case Failure(e) => return Failure(e)
-		}
-
-		while (true) {
-			readVarDecl(stream) match {
-				case Success((vdc, seq)) => vardecls += vdc; tokens ++= seq
-				case Failure(_) => break;
-			}
-		}
-
-		while (true) {
-			readStatement(stream) match {
-				case Success((stmt, seq)) => statements += stmt; tokens ++= seq
-				case Failure(_) => break;
-			}
-		}
-
-		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == "}") match {
-			case Success(tok) => tokens += tok; Success((CompoundStatementNode(statements), tokens))
-			case Failure(e) => stream.barf(tokens); Failure(e)
+	def readParamComma(stream: TokStream): Try[ParamNode] = {
+		// param ,
+		stream.extractIf(
+			(Right(readParam), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ","), false),
+		) match {
+			case Success((_, aseq)) => Success(aseq.head.asInstanceOf[ParamNode])
+			case Failure(e) => Failure(e)
 		}
 	}
 
-	def readStatement(stream: TokStream): Try[(Statement, Seq[Token])] = {
+	def readParam(stream: TokStream): Try[ParamNode] = {
+		// TYPE ID | TYPE ID []
+		stream.extractIf(
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "["), false),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "]"), false),
+		) orElse stream.extractIf(
+			(Left(_.tok == TokenType.TYPE), false),
+			(Left(_.tok == TokenType.IDENTIFIER), false),
+		) match {
+			case Success((seq, _)) => Success(ParamNode(seq.head.text, seq(1).text, seq.length == 4))
+			case Failure(e) => Failure(e)
+		}
+	}
+
+	def readCompoundStatement(stream: TokStream): Try[CompoundStatementNode] = {
+		// { var-declaration... statement... }
+		stream.extractIf(
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "{"), false),
+			(Right(readVarDecl), true),
+			(Right(readStatement), true),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "}"), false),
+		) match {
+			case Success((_, seq)) => Success(CompoundStatementNode())
+		}
+	}
+
+	def readStatement(stream: TokStream): Try[Statement] = {
 		// expression-stmt|compound-stmt|selection-stmt|iteration-stmt|return-stmt
 	}
 
 	def readExpressionStatement(stream: TokStream): Try[(ExpressionStatementNode, Seq[Token])] = {
-		var expr: Expression = null
-		val tokens = new ArrayBuffer[Token]
+		// expression ;|;
 
-		readExpression(stream) match {
-			case Success((e, seq)) => expr = e; tokens ++= seq
-			case Failure(e) => return Failure(e)
-		}
-
-		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ";") match {
-			case Success()
-		}
 	}
 
 	def readSelectionStatement(stream: TokStream, keywordToken: Option[Token]): Try[(SelectionStatementNode, Seq[Token])] = {
-		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
-			case Success(tok) if tok.text == "if" =>
-			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'if' but found ${tok.text}"))
+		// if ( expression ) statement else statement
+		val tokens = new ArrayBuffer[Token]
+
+		stream.extractIf(
+			t => t.tok == TokenType.KEYWORD && t.text == "if",
+			t => t.tok == TokenType.PUNCTUATION && t.text == "(",
+		) match {
+			case Success(seq) => tokens ++= seq
 			case Failure(e) => return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" => stream.extract
-			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '(' but found ${tok.text}"))
-			case None => Failure(new IllegalArgumentException("Expected '(' but found end of stream"))
-		}
-
-		var expression: Expression = null
+		var expr: Expression = null
 		readExpression(stream) match {
-			case Success(expr) => expression = expr
-			case Failure(e) => return Failure(e)
+			case Success((exp, seq)) => tokens ++= seq; expr = exp
+			case Failure(e) => stream.barf(tokens); return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ")" => stream.extract
-			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ')' but found ${tok.text}"))
-			case None => Failure(new IllegalArgumentException("Expected ')' but reached and of stream"))
+		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ")") match {
+			case Success(tok) => tokens += tok
+			case Failure(e) => stream.barf(tokens); return Failure(e)
 		}
 
-		var statement: Statement = null
+		var cps1: Statement = null
 		readStatement(stream) match {
-			case Success(stmt) => statement = stmt
-			case Failure(e) => return Failure(e)
+			case Success((cps, seq)) => tokens ++= seq; cps1 = cps
+			case Failure(e) => stream.barf(tokens); return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.KEYWORD && tok.text == "else" => stream.extract
-			case None => Success(SelectionStatementNode(expression, statement))
+		stream.extractIf((t: Token) => t.tok == TokenType.KEYWORD && t.text == "else") match {
+			case Success(tok) => tokens += tok
+			case Failure(_) => Success((SelectionStatementNode(expr, cps1), tokens))
 		}
 
 		readStatement(stream) match {
-			case Success(stmt) => Success(SelectionStatementNode(expression, statement, Some(stmt)))
-			case Failure(e) => Failure(e)
+			case Success((cps, seq)) => tokens ++= seq; Success((SelectionStatementNode(expr, cps1, Some(cps)), tokens))
+			case Failure(e) => stream.barf(tokens); Failure(e)
 		}
 	}
 
 	def readIterationStatement(stream: TokStream, keywordToken: Option[Token]): Try[(IterationStatementNode, Seq[Token])] = {
-		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
-			case Success(tok) if tok.text == "while" =>
-			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'while' but found ${tok.text}"))
+		// while ( expression ) statement
+		val tokens = new ArrayBuffer[Token]
+
+		stream.extractIf(
+			t => t.tok == TokenType.KEYWORD && t.text == "while",
+			t => t.tok == TokenType.PUNCTUATION && t.text == "(",
+		) match {
+			case Success(seq) => tokens ++= seq
 			case Failure(e) => return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" => stream.extract
-			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected '(' but found ${tok.text}"))
-			case None => Failure(new IllegalArgumentException("Expected '(' but found end of stream"))
-		}
-
-		var expression: Expression = null
+		var expr: Expression = null
 		readExpression(stream) match {
-			case Success(expr) => expression = expr
-			case Failure(e) => return Failure(e)
+			case Success((exp, seq)) => tokens ++= seq; expr = exp
+			case Failure(e) => stream.barf(tokens); return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ")" => stream.extract
-			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ')' but found ${tok.text}"))
-			case None => Failure(new IllegalArgumentException("Expected ')' but reached and of stream"))
+		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ")") match {
+			case Success(tok) => tokens += tok
+			case Failure(e) => stream.barf(tokens); return Failure(e)
 		}
 
-		readStatement(stream) match {
-			case Success(stmt) => Success(IterationStatementNode(expression, stmt))
-			case Failure(e) => Failure(e)
+		readCompoundStatement(stream) match {
+			case Success((cps, seq)) => tokens ++= seq; Success(IterationStatementNode(expr, cps), tokens)
+			case Failure(e) => stream.barf(tokens); Failure(e)
 		}
 	}
 
 	def readReturnStatement(stream: TokStream, keywordToken: Option[Token]): Try[(ReturnStatementNode, Seq[Token])] = {
-		getTokenType(stream, keywordToken, TokenType.KEYWORD) match {
-			case Success(tok) if tok.text == "return" =>
-			case Success(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected 'return' but found ${tok.text}"))
+		// return ;|return expression ;
+		val tokens = new ArrayBuffer[Token]
+
+		stream.extractIf((t: Token) => t.tok == TokenType.KEYWORD && t.text == "return") match {
+			case Success(tok) => tokens += tok
 			case Failure(e) => return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ";" => stream.extract; Success(ReturnStatementNode())
-			case _ =>
-		}
-
-		var expression: Expression = null
+		var expr: Option[Expression] = None
 		readExpression(stream) match {
-			case Success(expr) => expression = expr
+			case Success((ex, seq)) => tokens ++= seq; expr = Some(ex)
+			case Failure(_) =>
+		}
+
+		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == ";") match {
+			case Success(tok) => tokens += tok; Success((ReturnStatementNode(expr), tokens))
+			case Failure(e) => Failure(e)
+		}
+	}
+
+	def readExpression(stream: TokStream): Try[(Expression, Seq[Token])] = {
+		readAssignmentExpression(stream).orElse(readSimpleExpression(stream)) match {
+			case Success((a: AssignmentExpressionNode, seq)) => Success((a, seq))
+			case Success((s: SimpleExpressionNode, seq)) => Success((s, seq))
+			case Failure(e) => Failure(e)
+		}
+	}
+
+	def readAssignmentExpression(stream: TokStream): Try[(AssignmentExpressionNode, Seq[Token])] = {
+		// var = expression
+		val tokens = new ArrayBuffer[Token]
+
+		stream.extractIf(
+			_.tok == TokenType.IDENTIFIER,
+			t => t.tok == TokenType.ASSGNOP && t.text == "=",
+		) match {
+			case Success(seq) => tokens ++= seq
 			case Failure(e) => return Failure(e)
 		}
 
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == ";" => stream.extract; Success(ReturnStatementNode(Some(expression)))
-			case Some(tok) => Failure(new IllegalArgumentException(s"Line ${tok.line}: Expected ';' but found ${tok.text}"))
-			case None => Failure(new IllegalArgumentException("Expected ';' but reached end of stream"))
+		readExpression(stream) match {
+			case Success((expr, seq)) => tokens ++= seq; Success((AssignmentExpressionNode(tokens.head.text, expr), tokens))
+			case Failure(e) => stream.barf(tokens); Failure(e)
 		}
 	}
 
-	def readExpression(stream: TokStream): Try[(Expression, Seq[Token])]
+	def readSimpleExpression(stream: TokStream): Try[(SimpleExpressionNode, Seq[Token])] = {
+		// additive-expression|additive-expression RELOP additive-expression
+		var tokens = new ArrayBuffer[Token]
 
-	def readFactor(stream: TokStream): Try[FactorNode] = {
-		stream.peekOption match {
-			case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" =>
-				var expression: Expression = null
-				readExpression(stream) match {
-					case Success(expr) =>
-						expression = expr
-						stream.peekOption match {
-							case Some(tok) if tok.tok == TokenType.PUNCTUATION && tok.text == "(" =>
+		var expr: AdditiveExpressionNode = null
+		readAdditiveExpression(stream) match {
+			case Success((exp, seq)) => tokens ++= seq; expr = exp
+			case Failure(e) => return Failure(e)
+		}
 
-						}
-					case Failure(e) => return Failure(e)
-				}
-			case Some(tok) if tok.tok == TokenType.IDENTIFIER =>
-				stream.extract
-				stream.peekOption match {
-					case Some(tok) if tok.tok == TokenType.PUNCTUATION =>
+		var relop: String = ""
+		stream.extractIf((t: Token) => t.tok == TokenType.RELOP) match {
+			case Success(tok) => tokens += tok; relop = tok.text
+			case Failure(_) => Success(SimpleExpressionNode(expr), tokens)
+		}
 
-				}
+		readAdditiveExpression(stream) match {
+			case Success((exp, seq)) => tokens ++= seq; Success((SimpleExpressionNode(expr, Some(relop, exp)), tokens))
+			case Failure(e) => stream.barf(tokens); Failure(e)
 		}
 	}
+
+	def readAdditiveExpression(stream: TokStream): Try[(AdditiveExpressionNode, Seq[Token])] = {
+		// term|term ADDOP additive-expression
+		var tokens = new ArrayBuffer[Token]
+
+		var expr: TermNode = null
+		readTerm(stream) match {
+			case Success((exp, seq)) => expr = exp; tokens ++= seq
+			case Failure(e) => return Failure(e)
+		}
+
+		var addop: String = ""
+		stream.extractIf((t: Token) => t.tok == TokenType.ADDOP) match {
+			case Success(tok) => tokens += tok; addop = tok.text
+			case Failure(_) => Success(AdditiveExpressionNode(expr), tokens)
+		}
+
+		readAdditiveExpression(stream) match {
+			case Success((aex, seq)) => tokens ++= seq; Success(AdditiveExpressionNode(expr, Some((addop, aex))), tokens)
+			case Failure(e) => stream.barf(tokens); Failure(e)
+		}
+	}
+
+	def readTerm(stream: TokStream): Try[(TermNode, Seq[Token])] = {
+		// factor|factor MULOP term
+		val tokens = new ArrayBuffer[Token]
+
+		var fac: Factor = null
+		readFactor(stream) match {
+			case Success((f, seq)) => fac = f; tokens ++= seq
+			case Failure(e) => return Failure(e)
+		}
+
+		var mulop: String = ""
+		stream.extractIf((t: Token) => t.tok == TokenType.MULOP) match {
+			case Success(tok) => tokens += tok; mulop = tok.text
+			case Failure(_) => Success(TermNode(fac), tokens)
+		}
+
+		readTerm(stream) match {
+			case Success((t, seq)) => tokens ++= seq; Success(TermNode(fac, Some((mulop, t))), tokens)
+			case Failure(e) => stream.barf(tokens); Failure(e)
+		}
+	}
+
+	def readFactor(stream: TokStream): Try[(Factor, Seq[Token])] = {
+		// ( expression )|var|call|int|float
+		readVar(stream) orElse readCall(stream) orElse readInt(stream) orElse readFloat(stream) orElse readParenExpression(stream)
+	}
+
+	def readCall(stream: TokStream): Try[(CallNode, Seq[Token])] = {
+		// ID ( expression... )
+		val tokens = new ArrayBuffer[Token]
+		var identifier: String = ""
+
+		stream.extractIf((t: Token) => t.tok == TokenType.IDENTIFIER) match {
+			case Success(tok) => tokens += tok; identifier = tok.text
+			case Failure(e) => return Failure(e)
+		}
+		readParenExpression(stream) match {
+			case Success((pe, seq)) => tokens ++= seq; Success(CallNode(identifier, pe), tokens)
+			case Failure(e) => stream.barf(tokens); Failure(e)
+		}
+	}
+
+	def readVar(stream: TokStream): Try[(VarNode, Seq[Token])] = {
+		// ID|ID [ expression ]
+		val tokens = new ArrayBuffer[Token]
+		var identifier: String = ""
+
+		stream.extractIf((t: Token) => t.tok == TokenType.PUNCTUATION && t.text == "")
+	}
+
+	def readInt(stream: TokStream): Try[(IntNode, Seq[Token])] = {
+		// INT
+	}
+
+	def readFloat(stream: TokStream): Try[(FloatNode, Seq[Token])] = {
+		// FLOAT
+	}
+
+	def readParenExpression(stream: TokStream): Try[(Expression, Seq[Token])] = {
+		// ( expression )
+	}
+
 
 	def apply(tok: Seq[Token]): ProgramNode = {
 		val stream: TokStream = new SeqTokStream(tok)

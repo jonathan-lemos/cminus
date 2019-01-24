@@ -32,7 +32,7 @@ class SeqTokStreamTest extends FunSuite {
 		assert(stream.extract.tok == TokenType.FLOAT)
 		assert(stream.empty)
 		assert(stream.peekOption.isEmpty)
-		assertThrows[ParseException](stream.peek)
+		assertThrows[NoSuchElementException](stream.peek)
 		assertThrows[ParseException](stream.extract)
 	}
 

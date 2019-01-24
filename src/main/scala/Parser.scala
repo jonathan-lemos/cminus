@@ -77,56 +77,32 @@ trait TokStream {
 }
 
 class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
-	private val str: ListBuffer[Token] = tok.to[ListBuffer]
-	private var preserve: Boolean = false
-	private var preserveIndex: Int = 0
+	private var str: ListBuffer[Token] = tok.to[ListBuffer]
+	private var extractIfDepth = 0
 
-	override def peek: Token = preserve match {
-		case true if preserveIndex < str.length => str(preserveIndex)
-		case false if str.nonEmpty => str.head
-		case _ => throw new ParseException("Stream is empty")
-	}
+	override def peek: Token = str.head
 
-	override def peekOption: Option[Token] = preserve match {
-		case true if preserveIndex < str.length => Some(str(preserveIndex))
-		case false if str.nonEmpty => Some(str.head)
-		case _ => None
-	}
+	override def peekOption: Option[Token] = str.headOption
 
-	override def extract: Token = preserve match {
-		case true if preserveIndex < str.length => val ret = this.peek; preserveIndex += 1; ret
-		case false if str.nonEmpty => val ret = this.peek; str.remove(0); ret
-		case _ => throw new ParseException("Stream is empty")
-	}
-
-	private def startPreserve(): Unit = {
-		this.preserve = true
-	}
-
-	private def finishPreserve(): Seq[Token] = {
-		val ret = this.str.slice(0, preserveIndex)
-		this.str.remove(0, preserveIndex)
-		this.preserve = false
-		this.preserveIndex = 0
+	override def extract: Token = {
+		if (this.empty) throw new ParseException("Stream is empty")
+		val ret = this.peek
+		this.str.remove(0)
 		ret
 	}
 
-	override def extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
-		val tokens = new ArrayBuffer[Token]
+	private def __extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
 		val rettok = new ArrayBuffer[Token]
 		val ret = new ArrayBuffer[ASTNode]
 		for (cond <- conds) {
 			val vararg = cond._2
 			cond._1 match {
 				case _ if this.empty =>
-					this.barf(tokens)
 					Failure(new ParseException("End of stream"))
 				case Left(f) =>
 					def m: Try[Unit] = {
 						if (f(this.peek)) {
-							val t = this.extract
-							tokens += t
-							rettok += t
+							rettok += this.extract
 							Success()
 						}
 						else {
@@ -136,35 +112,40 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 
 					if (vararg) while (m.isSuccess) {} else m match {
 						case Success(_) =>
-						case Failure(e) => this.barf(tokens); Failure(e)
+						case Failure(e) => return Failure(e)
 					}
 				case Right(f) =>
-					def m: Try[Unit] = {
-						this.startPreserve()
-						val res = f(this)
-						tokens ++= this.finishPreserve()
-						res match {
-							case Success(node) => ret += node; Success()
-							case Failure(e) => Failure(e)
-						}
+					def m: Try[Unit] = f(this) match {
+						case Success(node) => ret += node; Success()
+						case Failure(e) => Failure(e)
 					}
 
 					if (vararg) while (m.isSuccess) {} else m match {
 						case Success(_) =>
-						case Failure(e) => this.barf(tokens); Failure(e)
+						case Failure(e) => return Failure(e)
 					}
 			}
 		}
 		Success((rettok, ret))
 	}
 
-	private def barf(c: Seq[Token]): Unit = {
-		str.insertAll(0, c)
+	override def extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
+		var tokSave: ListBuffer[Token] = null
+		if (extractIfDepth == 0) {
+			tokSave = this.str.clone
+		}
+		extractIfDepth += 1
+		val ret = __extractIf(conds: _*)
+		extractIfDepth -= 1
+		ret match {
+			case Success(v) => Success(v)
+			case Failure(e) => if (extractIfDepth == 0) this.str = tokSave; Failure(e)
+		}
 	}
 
-	override def nonEmpty: Boolean = !this.empty
+	override def nonEmpty: Boolean = this.str.nonEmpty
 
-	override def empty: Boolean = if (preserve) this.preserveIndex >= this.str.length else this.str.isEmpty
+	override def empty: Boolean = this.str.isEmpty
 }
 
 object Parser {

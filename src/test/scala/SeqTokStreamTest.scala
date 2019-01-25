@@ -85,4 +85,53 @@ class SeqTokStreamTest extends FunSuite {
 			(Left(_.tok == TokenType.PUNCTUATION), false),
 		).get._2.isEmpty)
 	}
+
+	test("SeqTokStream.BasicFailure") {
+		val tokens = Seq(
+			Token(TokenType.INT, "2", 1),
+			Token(TokenType.ADDOP, "+", 1),
+			Token(TokenType.FLOAT, "2.3", 1)
+		)
+		val stream = new SeqTokStream(tokens)
+		assert(stream.extractIf(
+			(Left(_.tok == TokenType.INT), false),
+			(Left(_.tok == TokenType.ADDOP), false),
+			(Left(_.tok == TokenType.ADDOP), false),
+		).isFailure)
+		assert(stream.extractIf(
+			(Left(_.tok == TokenType.INT), false),
+			(Left(_.tok == TokenType.ADDOP), false),
+			(Left(_.tok == TokenType.FLOAT), false),
+			(Left(_ => true), false),
+		).isFailure)
+		assert(stream.extractIf(
+			(Left(_.tok == TokenType.INT), false),
+			(Left(_.text == "+"), false),
+			(Left(_.line == 1), false),
+		).isSuccess)
+	}
+
+	test("SeqTokStream.RightFailure") {
+		val tokens = Seq(
+			Token(TokenType.PUNCTUATION, "(", 1),
+			Token(TokenType.INT, "2", 1),
+			Token(TokenType.ADDOP, "+", 1),
+			Token(TokenType.FLOAT, "2.3", 1),
+			Token(TokenType.INT, "2", 1),
+			Token(TokenType.ADDOP, "+", 1),
+			Token(TokenType.FLOAT, "2.3", 1),
+			Token(TokenType.PUNCTUATION, ")", 1),
+		)
+		val stream = new SeqTokStream(tokens)
+		assert(stream.extractIf(
+			(Left(_.tok == TokenType.PUNCTUATION), false),
+			(Right(readExpr), true),
+			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == "("), false)
+		).isFailure)
+		assert(stream.extractIf(
+			(Left(_.tok == TokenType.PUNCTUATION), false),
+			(Right(readExpr), true),
+			(Left(_.tok == TokenType.PUNCTUATION), false),
+		).get._2.length == 2)
+	}
 }

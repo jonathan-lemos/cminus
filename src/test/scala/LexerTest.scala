@@ -49,22 +49,22 @@ class LexerTest extends FunSuite {
 
 	test("Lexer.multiline") {
 		val res = Lexer(Seq(
-			"int x_X = 4;",
-			"if (x_X == 4){",
+			"int xX = 4;",
+			"if (xX == 4){",
 			"   float pi = 4/3.14;",
 			"   print(3.14);",
 			"}"
 		))
 		val expect = Seq(
 			Token(TokenType.TYPE, "int", 1),
-			Token(TokenType.IDENTIFIER, "x_X", 1),
+			Token(TokenType.IDENTIFIER, "xX", 1),
 			Token(TokenType.ASSGNOP, "=", 1),
 			Token(TokenType.INT, "4", 1),
 			Token(TokenType.PUNCTUATION, ";", 1),
 
 			Token(TokenType.KEYWORD, "if", 2),
 			Token(TokenType.PUNCTUATION, "(", 2),
-			Token(TokenType.IDENTIFIER, "x_X", 2),
+			Token(TokenType.IDENTIFIER, "xX", 2),
 			Token(TokenType.RELOP, "==", 2),
 			Token(TokenType.INT, "4", 2),
 			Token(TokenType.PUNCTUATION, ")", 2),

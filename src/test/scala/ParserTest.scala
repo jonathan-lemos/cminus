@@ -1,6 +1,101 @@
 import org.scalatest.FunSuite
 
 class ParserTest extends FunSuite {
+	test("Parser.ArithmeticComplicated") {
+		val tokens = Seq(
+			Token(TokenType.INT, "46", 1),
+			Token(TokenType.MULOP, "*", 1),
+			Token(TokenType.PUNCTUATION, "(", 1),
+			Token(TokenType.IDENTIFIER, "x", 1),
+			Token(TokenType.ADDOP, "+", 1),
+			Token(TokenType.IDENTIFIER, "y", 1),
+			Token(TokenType.PUNCTUATION, "(", 1),
+			Token(TokenType.PUNCTUATION, ")", 1),
+			Token(TokenType.MULOP, "/", 1),
+			Token(TokenType.IDENTIFIER, "z", 1),
+			Token(TokenType.PUNCTUATION, "(", 1),
+			Token(TokenType.IDENTIFIER, "x", 1),
+			Token(TokenType.PUNCTUATION, ",", 1),
+			Token(TokenType.IDENTIFIER, "y", 1),
+			Token(TokenType.PUNCTUATION, ",", 1),
+			Token(TokenType.INT, "47", 1),
+			Token(TokenType.ADDOP, "-", 1),
+			Token(TokenType.INT, "2", 1),
+			Token(TokenType.PUNCTUATION, ")", 1),
+			Token(TokenType.PUNCTUATION, ")", 1),
+		)
+		val tree = Parser(tokens, Parser.readSimpleExpression)
+		assert(tree.isSuccess)
+		val expect =
+		SimpleExpressionNode(
+			AdditiveExpressionNode(
+				TermNode(NumNode(Left(46)),
+					Some(("*",
+							TermNode(
+								ParenExpressionNode(
+									SimpleExpressionNode(
+										AdditiveExpressionNode(
+											TermNode(VarNode("x")),
+											Some(("+",
+													AdditiveExpressionNode(
+														TermNode(CallNode("y",Seq()),
+															Some(("/",
+																	TermNode(CallNode("z",Seq(
+																		SimpleExpressionNode(
+																			AdditiveExpressionNode(
+																				TermNode(VarNode("x"))
+																			)
+																		),
+																		SimpleExpressionNode(
+																			AdditiveExpressionNode(
+																				TermNode(VarNode("y"))
+																			)
+																		),
+																		SimpleExpressionNode(
+																			AdditiveExpressionNode(
+																				TermNode(NumNode(Left(47))),
+																				Some(("-",
+																						AdditiveExpressionNode(
+																							TermNode(NumNode(Left(2)))
+																						)
+																				))
+																			)
+																		)
+																	)))
+															))
+														)
+													)
+												))
+										)
+									)
+								)
+							)
+					))
+				)
+			)
+		)
+		assert(tree.get == expect)
+	}
+
+	test("Parser.ArithmeticBasic") {
+		val tokens = Seq(
+			Token(TokenType.INT, "46", 1),
+			Token(TokenType.ADDOP, "+", 1),
+			Token(TokenType.INT, "2", 1),
+		)
+		val tree = Parser(tokens, Parser.readSimpleExpression)
+		assert(tree.isSuccess)
+		val expect = SimpleExpressionNode(
+			AdditiveExpressionNode(
+				TermNode(NumNode(Left(46))),
+				Some(("+", AdditiveExpressionNode(
+					TermNode(NumNode(Left(2))),
+				)))
+			)
+		)
+		assert(tree.get == expect)
+	}
+
 	test("Parser.Basic") {
 		val tokens = Seq(
 			Token(TokenType.TYPE, "int", 1),

@@ -1,5 +1,4 @@
-import scala.collection.immutable.HashMap
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
 trait ASTNode
@@ -79,17 +78,17 @@ trait TokStream {
 }
 
 class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
-	private var str: ListBuffer[Token] = tok.to[ListBuffer]
+	private val str = tok.to[Array]
+	private var index = 0
 
-	override def peek: Token = str.head
+	override def peek: Token = str(index)
 
-	override def peekOption: Option[Token] = str.headOption
+	override def peekOption: Option[Token] = if (index < str.length) Some(str(index)) else None
 
 	override def extract: Token = {
 		if (this.empty) throw new ParseException("Stream is empty")
-		val ret = this.peek
-		this.str.remove(0)
-		ret
+		this.index += 1
+		str(index - 1)
 	}
 
 	private def __extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
@@ -131,56 +130,25 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 	}
 
 	override def extractIf(conds: (Either[Token => Boolean, TokStream => Try[ASTNode]], Boolean)*): Try[(Seq[Token], Seq[ASTNode])] = {
-		val tokSave = this.str.clone
+		val indexSave = this.index
 		val ret = __extractIf(conds: _*)
 		ret match {
 			case Success(v) => Success(v)
-			case Failure(e) => this.str = tokSave; Failure(e)
+			case Failure(e) => this.index = indexSave; Failure(e)
 		}
 	}
 
-	override def nonEmpty: Boolean = this.str.nonEmpty
+	override def nonEmpty: Boolean = !this.empty
 
-	override def empty: Boolean = this.str.isEmpty
+	override def empty: Boolean = this.index >= this.str.length
 }
 
 object Parser {
-	private val rules: HashMap[String, String] = HashMap(
-		("program", "declaration-list"),
-		("declaration-list", "declaration-list declaration|declaration"),
-		("declaration", "var-declaration|fun-declaration"),
-		("var-declaration", "TYPE ID ;|TYPE ID [ NUM ] ;"),
-		("fun-declaration", "TYPE ID ( params ) compound-stmt"),
-		("params", "param-list|void"),
-		("param-list", "param-list , param|param"),
-		("param", "TYPE ID|TYPE ID [ ]"),
-		("compound-stmt", "{ local-declarations statement-list }"),
-		("local-declarations", "local-declarations var-declaration|NULL"),
-		("statement-list", "statement-list statement|NULL"),
-		("statement", "expression-stmt|compound-stmt|selection-stmt|iteration-stmt|return-stmt"),
-		("expression-stmt", "expression ;|;"),
-		("selection-stmt", "if ( expression ) statement|if ( expression ) statement else statement"),
-		("iteration-stmt", "while ( expression ) statement"),
-		("return-stmt", "return ;|return expression ;"),
-		("expression", "var = expression|simple-expression"),
-		("var", "ID|ID [ expression ]"),
-		("simple-expression", "additive-expression RELOP additive-expression|additive-expression"),
-		("additive-expression", "additive-expression ADDOP term|term"),
-		("term", "term MULOP factor|factor"),
-		("factor", "( expression )|var|call|NUM"),
-		("call", "ID ( args )"),
-		("args", "arg-list|empty"),
-		("arg-list", "arg-list , expression|expression"),
-	)
+	// var-declaration | fun-declaration
+	def readDeclaration(stream: TokStream): Try[Declaration] = readVarDecl(stream) orElse readFunDecl(stream)
 
-	def readDeclaration(stream: TokStream): Try[Declaration] = {
-		// var-declaration | fun-declaration
-		readVarDecl(stream) orElse readFunDecl(stream)
-	}
-
+	// TYPE ID ;|TYPE ID [ INT ] ;
 	def readVarDecl(stream: TokStream): Try[VarDeclNode] = {
-		// TYPE ID ;|TYPE ID [ INT ] ;
-
 		stream.extractIf(
 			// TYPE ID = expression;
 			(Left(_.tok == TokenType.TYPE), false),
@@ -359,10 +327,7 @@ object Parser {
 	}
 
 	// assignment-expression|simple-expression
-	def readExpression(stream: TokStream): Try[Expression] = readAssignmentExpression(stream) orElse readSimpleExpression(stream) match {
-		case Success(exp) => Success(exp)
-		case Failure(e) => Failure(new ParseException(s"Expected expression\n${e.getMessage}"))
-	}
+	def readExpression(stream: TokStream): Try[Expression] = readAssignmentExpression(stream) orElse readSimpleExpression(stream)
 
 	def readAssignmentExpression(stream: TokStream): Try[AssignmentExpressionNode] = {
 		// var = expression
@@ -422,11 +387,11 @@ object Parser {
 	}
 
 	// ( expression )|var|call|int|float
-	def readFactor(stream: TokStream): Try[Factor] = readVar(stream) orElse readCall(stream) orElse readParenExpression(stream) orElse readNum(stream)
+	def readFactor(stream: TokStream): Try[Factor] = readCall(stream) orElse readVar(stream) orElse readParenExpression(stream) orElse readNum(stream)
 
 	def readNum(stream: TokStream): Try[NumNode] = {
 		stream.extractIf(
-			(Left(t => t.tok == TokenType.INT || t.tok == TokenType.PUNCTUATION), false)
+			(Left(t => t.tok == TokenType.INT || t.tok == TokenType.FLOAT), false)
 		) match {
 			case Success((tok, _)) if tok.head.tok == TokenType.INT => Success(NumNode(Left(tok.head.text.toInt)))
 			case Success((tok, _)) => Success(NumNode(Right(tok.head.text.toDouble)))
@@ -440,7 +405,8 @@ object Parser {
 			(Right(readExpression), false),
 			(Left(t => t.tok == TokenType.PUNCTUATION && t.text == ")"), false),
 		) match {
-			case Success((_, seq)) => Success(seq.head.asInstanceOf[ParenExpressionNode])
+			case Success((_, seq)) =>
+				Success(ParenExpressionNode(seq.head.asInstanceOf[Expression]))
 			case Failure(e) => Failure(new ParseException(s"Expected paren-expression\n${e.getMessage}"))
 		}
 	}
@@ -490,12 +456,17 @@ object Parser {
 		}
 	}
 
-	def readProgramNode(stream: TokStream): Try[ProgramNode] = {
-		stream.extractIf((Right(readDeclaration), true)) match {
-			case Success((_, seq)) => Success(ProgramNode(seq.asInstanceOf[Seq[Declaration]]))
-			case Failure(e) => Failure(new ParseException(s"Expected program\n${e.getMessage}"))
-		}
+	def readProgramNode(stream: TokStream): Try[ProgramNode] = stream.extractIf((Right(readDeclaration), true)) match {
+		case Success((_, seq)) => Success(ProgramNode(seq.asInstanceOf[Seq[Declaration]]))
+		case Failure(e) => Failure(new ParseException(s"Expected program\n${e.getMessage}"))
 	}
 
-	def apply[T >: ASTNode](tok: Seq[Token], lambda: TokStream => Try[T] = readProgramNode): Try[T] = lambda(new SeqTokStream(tok))
+	def apply[T >: ASTNode](tok: Seq[Token], lambda: TokStream => Try[T] = this.readProgramNode _): Try[T] = {
+		val stream = new SeqTokStream(tok)
+		lambda(stream) match {
+			case Success(v) if stream.empty => Success(v)
+			case Success(_) => Failure(new ParseException(s"Trailing tokens"))
+			case Failure(e) => Failure(e)
+		}
+	}
 }

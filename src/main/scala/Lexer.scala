@@ -3,14 +3,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
 /**
-  * The types of tokens this Lexer can output.
+  * An enum representing the types of tokens this Lexer can handle.
   */
 object TokenType extends Enumeration {
 	val ADDOP, ASSGNOP, CHUCK_E_CHEESE, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, PUNCTUATION, RELOP, TYPE = Value
 }
 
 /**
-  * A data class containing a token.
+  * An immutable data class containing a token.
   * @param tok  The TokenType of this token.
   * @param text The actual text in this token.
   * @param line The line this token occurs on.
@@ -18,42 +18,6 @@ object TokenType extends Enumeration {
 case class Token(tok: TokenType.Value, text: String, line: Int) {
 	override def toString: String = s"($line,$tok," + "\"" + s"$text" + "\")"
 }
-
-object Token {
-	/**
-	  * The list of addition operators supported by this Lexer.
-	  * Precedence: 4
-	  */
-	val addOps      = HashSet("+", "-")
-	/**
-	  * The list of assignment operators supported by this Lexer.
-	  * Precedence: 14
-	  */
-	val assgnOps    = HashSet("=")
-	/**
-	  * The list of keywords supported by this Lexer.
-	  */
-	val keywords    = HashSet("else", "if", "return", "while")
-	/**
-	  * The list of multiplication operators supported by this Lexer.
-	  * Precedence: 3
-	  */
-	val mulOps      = HashSet("*", "/")
-	/**
-	  * The list of punctuation supported by this Lexer.
-	  */
-	val punctuation = HashSet("{", "}", "(", ")", ";", ",")
-	/**
-	  * The list of relational operators supported by this Lexer.
-	  * Precedence: 6
-	  */
-	val relOps      = Seq(">=", "<=", "==", "!=", ">", "<")
-	/**
-	  * The list of types supported by this Lexer.
-	  */
-	val types       = HashSet("float", "int", "void")
-}
-
 
 /**
   * Lexically analyzes the raw lines.
@@ -70,8 +34,7 @@ object Lexer {
 
 	/**
 	  * Builds a regex out of an iterable.
-	  * All entries in the iterable are matched.
-	  * The regex will match longer entries before shorter ones in a sorted list.
+	  * All entries in the iterable are matched. Precedence is from left to right.
 	  * Group 1 - Captures anything in the iterable. This is case sensitive.
 	  * Group 2 - The rest of the string.
 	  * For example {"abc", "def", "()["} turns into {{{ ^(abc|def|\(\)\[)(.*)$ }}}
@@ -94,84 +57,145 @@ object Lexer {
 	private def buildRegexBounded(c: Iterable[String]): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_) + "\\b").substring(1) + ")(.*)$").r
 
 	/**
+	  * Iterables containing strings belonging to a token class
+	  * These are matched greedily from left to right, so "==" is matched before "="
+	  */
+	private val addOps       = HashSet("+", "-")
+	private val assgnOps     = HashSet("=")
+	private val keywords     = HashSet("else", "if", "return", "while")
+	private val mulOps       = HashSet("*", "/")
+	private val punctuation  = HashSet("{", "}", "(", ")", ";", ",")
+	private val relOps       = Seq(">=", "<=", "==", "!=", ">", "<")
+	private val types        = HashSet("float", "int", "void")
+
+	/**
+	  * Matches floats.
+	  * Matches: "2.0", "0.2", "-2.0", "+2.0", "-2.0e+14", "-02.040E-14", "2e14"
+	  * Does not match: ".2", "2.", "2.4.3", "23", "0..2"
+	  * Group 1 - A float literal.
+	  * Group 2 - The rest of the string
+	  *
+	  * {{{
+	  * [-+]                                             - Matches a plus or a minus.
+	  * [-+]?                                            - Matches an optional plus or minus.
+	  * \d                                               - Matches a numeric character (same as [0-9]).
+	  * \d+                                              - Matches one or more numeric characters.
+	  * (?:...)                                          - Non-capturing group. Groups regex without capturing what's inside.
+	  * \.                                               - Matches a literal period (. matches any character, "\" is a literal backslash that escapes it).
+	  * (?:\.\d+)                                        - Matches a literal period followed by one or more digits.
+	  * (?:\.\d+)?                                       - Optionally matches a literal period followed by one or more digits.
+	  * [eE]                                             - Matches "e" or "E"
+	  * [eE][-+]?\d+                                     - Matches "e" or "E" followed by an optional plus or minus followed by one or more numeric characters (scientific notation).
+	  * |                                                - Regex OR
+	  * (?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))                - Matches either an optional period + one or more digits followed by scientific notation or a required period followed by one or more digits.
+	  *                                                    In other words the period and following digits are only optional if scientific notation is used.
+	  * (.*)                                             - Captures any character 0 or more times
+	  * ^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$ - Captures an optional plus or minus followed by digits with a period in the middle, or if scientific notation is used, the period is optional. The next group captures the rest of the string.
+	  *
+	  * }}}
+	  */
+	private val floatRegex = """^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$""".r
+
+	/**
+	  * Matches identifiers, which are strings of upper/lower case letters with optional underscores.
+	  *
+	  * {{{
+	  * [A-Za-z_]          - Matches an upper/lower case letter or underscore (identifier character)
+	  * [A-Za-z_]+         - Matches one or more identifier characters
+	  * ([A-Za-z_]+)       - Captures a group of one or more identifier characters
+	  * ^([A-Za-z_]+)      - Matches 0 or more of any character at the beginning of the string.
+	  * .                  - Matches any character
+	  * .*                 - Matches 0 or more of any character
+	  * (.*)               - Captures a group of 0 or more of any character
+	  * (.*)$              - Captures a group of 0 or more of any character until the end of the string.
+	  * ^([A-Za-z_]+)(.*)$ - Captures a group of identifier characters at the beginning of the string, and then captures the rest of the characters in another group.
+	  * }}}
+	  *
+	  * Triple quotes denote a "raw" string, where backslashes show up literally instead of escaping the next character.
+	  */
+	private val identifierRegex = """^([A-Za-z]+)(.*)$""".r
+
+	/**
+	  * Matches integers, which are strings of digits.
+	  * Group 1 - An integer literal.
+	  * Group 2 - The rest of the string
+	  *
+	  * {{{
+	  * -                - Matches "-" literally
+	  * -?               - Optionally matches a literal "-"
+	  * [0-9]            - Matches a numeric digit
+	  * [0-9]+           - Matches one or more numeric digits
+	  * ([0-9]+)         - Captures one or more numeric digits
+	  * .                - Matches any character
+	  * .*               - Matches 0 or more of any character
+	  * (.*)             - Captures 0 or more of every character.
+	  * ^(-?[0-9]+)(.*)$ - Captures an optional minus followed by 1 or more digits followed by another capture of the rest of the string.
+	  * }}}
+	  */
+	private val intRegex = """^(-?[0-9]+)(.*)$""".r
+
+	/**
+	/*/*
+	  * Matches "/*" or "*/" anywhere in the string
+	  * Group 1 - The token matched.
+	  * Group 2 - The rest of the string.
+	  *
+	  * {{{
+	  * "\\*/"                 - Matches a "*" followed by a literal "/"
+	  * "/\\*"                 - Matches a literal "/" followed by a literal "*"
+	  * ".*"                   - Matches any character.
+	  * ".*?"                  - Matches any character lazily (taking as few characters as needed).
+	  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
+	  * "(.*)"                 - Captures a group of any character.
+	  *
+	  * "^.*?(\\*/|/\\*)(.*)$" - Matches the first "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
+	  * }}}
+	  */
+	private val blockCommentInsideRegex = """^.*?(\*/|/\*)(.*)$""".r
+
+	/**
+	  * Matches "/*"
+	  * Group 1 - The rest of the string.
+	  *
+	  * {{{
+	  * "/\\*"       - Matches a "/" followed by a literal "*" ("*" without backslash means "0 or more of the aforementioned")
+	  * ".*"         - Matches any character 0 or more times.
+	  * "^/\\*(.*)$" - Matches a "/*" and captures the rest of the string.
+	  * }}}
+	  */*/*/
+	private val blockCommentOpenRegex = """^/\*(.*)$""".r
+
+	/**
+	  * Matches "//".
+	  * This regex does not capture anything.
+	  *
+	  * {{{
+	  * "//"     - Matches "//" literally
+	  * ".*"     - Matches any character 0 or more times.
+	  * "^//.*$" - Matches "//" at any point in the string.
+	  * }}}
+	  */
+	private val oneLineCommentRegex = """^//.*$""".r
+
+	/**
 	  * The types of tokens that can be Lexed.
 	  * _1 - The type of token.
 	  * _2 - The regex that matches it.
 	  *     Group 1 - The matched token.
 	  *     Group 2 - The rest of the string.
+	  * Earlier groups are matched before later ones.
 	  */
 	private val tokenClasses: Seq[(TokenType.Value, Regex)] = Seq(
-		(TokenType.ADDOP, buildRegex(Token.addOps)),
-		(TokenType.ASSGNOP, buildRegex(Token.assgnOps)),
-		(TokenType.KEYWORD, buildRegexBounded(Token.keywords)),
-		(TokenType.PUNCTUATION, buildRegex(Token.punctuation)),
-		(TokenType.MULOP, buildRegex(Token.mulOps)),
-		(TokenType.RELOP, buildRegex(Token.relOps)),
-		(TokenType.TYPE, buildRegex(Token.types)),
-
-		/**
-		  * Matches floats.
-		  * Matches: "2.0", "0.2", "-2.0", "+2.0", "-2.0e+14", "-02.040E-14", "2e14"
-		  * Does not match: ".2", "2.", "2.4.3", "23", "0..2"
-		  * Group 1 - A float literal.
-		  * Group 2 - The rest of the string
-		  *
-		  * {{{
-		  * [-+]                                             - Matches a plus or a minus.
-		  * [-+]?                                            - Matches an optional plus or minus.
-		  * \d                                               - Matches a numeric character (same as [0-9]).
-		  * \d+                                              - Matches one or more numeric characters.
-		  * (?:...)                                          - Non-capturing group. Groups regex without capturing what's inside.
-		  * \.                                               - Matches a literal period (. matches any character, "\" is a literal backslash that escapes it).
-		  * (?:\.\d+)                                        - Matches a literal period followed by one or more digits.
-		  * (?:\.\d+)?                                       - Optionally matches a literal period followed by one or more digits.
-		  * [eE]                                             - Matches "e" or "E"
-		  * [eE][-+]?\d+                                     - Matches "e" or "E" followed by an optional plus or minus followed by one or more numeric characters (scientific notation).
-		  * |                                                - Regex OR
-		  * (?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))                - Matches either an optional period + one or more digits followed by scientific notation or a required period followed by one or more digits.
-		  *                                                    In other words the period and following digits are only optional if scientific notation is used.
-		  * (.*)                                             - Captures any character 0 or more times
-		  * ^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$ - Captures an optional plus or minus followed by digits with a period in the middle, or if scientific notation is used, the period is optional. The next group captures the rest of the string.
-		  *
-		  * }}}
-		  */
-		(TokenType.FLOAT, """^([-+]?\d+(?:(?:\.\d+)?[eE][-+]?\d+|\.\d+))(.*)$""".r),
-
-		/**
-		  * Matches identifiers, which are strings of upper/lower case letters with optional underscores.
-		  *
-		  * {{{
-		  * [A-Za-z_]          - Matches an upper/lower case letter or underscore (identifier character)
-		  * [A-Za-z_]+         - Matches one or more identifier characters
-		  * ([A-Za-z_]+)       - Captures a group of one or more identifier characters
-		  * ^([A-Za-z_]+)      - Matches 0 or more of any character at the beginning of the string.
-		  * .                  - Matches any character
-		  * .*                 - Matches 0 or more of any character
-		  * (.*)               - Captures a group of 0 or more of any character
-		  * (.*)$              - Captures a group of 0 or more of any character until the end of the string.
-		  * ^([A-Za-z_]+)(.*)$ - Captures a group of identifier characters at the beginning of the string, and then captures the rest of the characters in another group.
-		  * }}}
-		  *
-		  * Triple quotes denote a "raw" string, where backslashes show up literally instead of escaping the next character.
-		  */
-		(TokenType.IDENTIFIER, """^([A-Za-z_]+)(.*)$""".r),
-
-		/**
-		  * Matches integers, which are strings of digits.
-		  * Group 1 - An integer literal.
-		  * Group 2 - The rest of the string
-		  *
-		  * {{{
-		  * [0-9]          - Matches a numeric digit
-		  * [0-9]+         - Matches one or more numeric digits
-		  * ([0-9]+)       - Captures one or more numeric digits
-		  * .              - Matches any character
-		  * .*             - Matches 0 or more of any character
-		  * (.*)           - Captures 0 or more of every character.
-		  * ^([0-9]+)(.*)$ - Captures 1 or more digits followed by another capture of the rest of the string.
-		  * }}}
-		  */
-		(TokenType.INT, """^([0-9]+)(.*)$""".r),
+		(TokenType.ADDOP, buildRegex(addOps)),
+		(TokenType.ASSGNOP, buildRegex(assgnOps)),
+		(TokenType.KEYWORD, buildRegexBounded(keywords)),
+		(TokenType.PUNCTUATION, buildRegex(punctuation)),
+		(TokenType.MULOP, buildRegex(mulOps)),
+		(TokenType.RELOP, buildRegex(relOps)),
+		(TokenType.TYPE, buildRegex(types)),
+		(TokenType.FLOAT, floatRegex),
+		(TokenType.IDENTIFIER, identifierRegex),
+		(TokenType.INT, intRegex),
 	)
 
 	/**
@@ -179,7 +203,7 @@ object Lexer {
 	  * @param lines The lines of code.
 	  * @return      A sequence of tokens.
 	  */
-	def apply(lines: Seq[String]): Seq[Token] = {
+	def apply(lines: Seq[String], debugOutput: Boolean = false): Seq[Token] = {
 		// The sequence needs to be mutable, so we use ArrayBuffer
 		val arr = new ArrayBuffer[Token]
 		// How deeply nested we are in /* */ comments.
@@ -194,72 +218,25 @@ object Lexer {
 		  */
 		def handleComment(sb: String): Option[String] = {
 			// If we are in a comment.
-			if (commentCtr > 0) {
-				/**
-				/*/*
-				  * Matches "/*" or "*/" anywhere in the string
-				  * Group 1 - The token matched.
-				  * Group 2 - The rest of the string.
-				  *
-				  * {{{
-				  * "\\*/"                 - Matches a "*" followed by a literal "/"
-				  * "/\\*"                 - Matches a literal "/" followed by a literal "*"
-				  * ".*"                   - Matches any character.
-				  * ".*?"                  - Matches any character lazily (taking as few characters as needed).
-				  *                          This is so it doesn't gobble the entire string if there's more than one "*/" or "/*" in the line.
-				  * "(.*)"                 - Captures a group of any character.
-				  *
-				  * "^.*?(\\*/|/\\*)(.*)$" - Matches the first "/*" or "*/" anywhere in the string, while capturing the rest of the string after.
-				  * }}}
-				  */
-				val blockCommentInsideRegex = """^.*?(\*/|/\*)(.*)$""".r
-
-				sb match {
-					// Use the "blockCommentInsideRegex, which matches "/*" or "*/" anywhere in this line."
-					case blockCommentInsideRegex(token, rest) =>
-						token match {
-							case "/*" => commentCtr += 1
-							case "*/" => commentCtr -= 1
-						}
-						Some(rest)
-					case _ => Some("")
-				}
+			if (commentCtr > 0) sb match {
+				// Use the "blockCommentInsideRegex, which matches "/*" or "*/" anywhere in this line."
+				case blockCommentInsideRegex(token, rest) =>
+					token match {
+						case "/*" => commentCtr += 1
+						case "*/" => commentCtr -= 1
+					}
+					Some(rest)
+				case _ => Some("")
 			}
 			// If we are not in a comment.
-			else {
-				/**
-				  * Matches "/*"
-				  * Group 1 - The rest of the string.
-				  *
-				  * {{{
-				  * "/\\*"       - Matches a "/" followed by a literal "*" ("*" without backslash means "0 or more of the aforementioned")
-				  * ".*"         - Matches any character 0 or more times.
-				  * "^/\\*(.*)$" - Matches a "/*" and captures the rest of the string.
-				  * }}}
-				  */*/*/
-				val blockCommentOpenRegex = """^/\*(.*)$""".r
-
-				/**
-				  * Matches "//".
-				  * This regex does not capture anything.
-				  *
-				  * {{{
-				  * "//"     - Matches "//" literally
-				  * ".*"     - Matches any character 0 or more times.
-				  * "^//.*$" - Matches "//" at any point in the string.
-				  * }}}
-				  */
-				val oneLineCommentRegex = """^//.*$""".r
-
-				sb match {
-					// Attempt to match "/*" at the beginning of this string.
-					case blockCommentOpenRegex(rest) =>
-						commentCtr += 1
-						Some(rest)
-					// Attempt to match "//" at the beginning of this string, ignore the rest of the line if so.
-					case oneLineCommentRegex() => Some("")
-					case _ => None
-				}
+			else sb match {
+				// Attempt to match "/*" at the beginning of this string.
+				case blockCommentOpenRegex(rest) =>
+					commentCtr += 1
+					Some(rest)
+				// Attempt to match "//" at the beginning of this string, ignore the rest of the line if so.
+				case oneLineCommentRegex() => Some("")
+				case _ => None
 			}
 		}
 
@@ -270,7 +247,7 @@ object Lexer {
 		  * @return A tuple containing the extracted token and the rest of the string.
 		  * If none could be matched, it returns a token of type TokenType.ERROR that extracts a single character, returning the rest of the string.
 		  */
-		def getToken(sb: String, line: Int): (Token, String) = tokenClasses.foldLeft((Token(TokenType.ERROR, sb.substring(0, 1), line), sb.substring(1)))((ta: (Token, String), tk: (TokenType.Value, Regex))=> {
+		def getToken(sb: String, line: Int): (Token, String) = tokenClasses.foldLeft((Token(TokenType.ERROR, sb.substring(0, 1), line), sb.substring(1)))((ta: (Token, String), tk: (TokenType.Value, Regex)) => {
 			sb match {
 				// if this regex matches, set our return to the longer of the tokens
 				case tk._2(tok, rest) => if (ta._1.tok != TokenType.ERROR && ta._1.text.length >= tok.length) ta else (Token(tk._1, tok, line), rest)
@@ -279,8 +256,16 @@ object Lexer {
 			}
 		})
 
-		// Foreach line with line number
+		/**
+		  * Prints a string in blue.
+		  * @param s The string.
+		  */
+		def printlnBlue(s: String): Unit = println(s"\033[34m$s\033[m")
+
+		// Foreach line with line number. The main loop
 		for ((s, i) <- lines.zipWithIndex) {
+			if (debugOutput) printlnBlue(s"Input (${i + 1}): " + "\"" + s"$s" + "\"")
+
 			var sb = s.trim()
 			// While there is still text in sb, repeatedly extract a token from the beginning
 			while (sb != "") {
@@ -290,6 +275,7 @@ object Lexer {
 						val tok = getToken(sb, i + 1)
 						arr += tok._1
 						sb = tok._2
+						if (debugOutput) println(tok._1.toString)
 				}
 				// Remove whitespace.
 				sb = sb.trim()

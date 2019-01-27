@@ -188,7 +188,7 @@ object Lexer {
 		(TokType.OPAREN    , buildRegex("(")),
 		(TokType.RELOP     , buildRegex(">=", "<=", "==", "!=", ">", "<")),
 		(TokType.SEMICOLON , buildRegex(";")),
-		(TokType.TYPE      , buildRegex("float", "int", "void")),
+		(TokType.TYPE      , buildRegexBounded("float", "int", "void")),
 		(TokType.IDENTIFIER, identifierRegex),
 	)
 

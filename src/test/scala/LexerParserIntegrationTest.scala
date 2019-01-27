@@ -31,26 +31,47 @@ class LexerParserIntegrationTest extends FunSuite {
 		assert(tree.get == expect)
 	}
 
-	test("LexerParser.Big") {
+	test("LexerParser.BigAccept") {
 		val lines = Seq(
-			"int square(int x) {",
-			"   int i = 1;",
-			"   int y = x;",
-			"   while (i < x) {",
-			"       y = y + x;",
+			"/* /* does some bullshit */",
+			"int q = abcacadabra; // <- this should be ignored",
+			"*/",
+			"float pow(float x, int yfactor) {",
+			"   int i = 0;",
+			"   float ret = -1.0e+19 * -1;",
+			"   while (i < (yfactor + 1) / 2) {",
+			"       ret = ret * x;",
+			"       if (ret < 0)",
+			"           while (ret < 0) ret = ret + x;",
+			"       else { ret = ret * -1; }",
+			"       x = x + 1;",
 			"   }",
-			"   return y;",
+			"   return ret;",
 			"}",
 			"",
-			"float pi = 6.28 / 2;",
+			"// doesn't actually print anything",
+			"void printall(float x[]) {",
+			"   int y[15];",
+			"   ;;;;;;",
+			"}",
+			"",
+			"float pi = (5.28 + 1) / pow(2e1, 1);",
+			"int multiplier = 2 + 3 + 4 * (5 * (pow(2.4e7, 6) + sqrt(4)));",
 			"",
 			"int main(void) {",
-			"   float twopi = 2 * pi;",
-			"   print(2 + (3 + (4 * square())) * square(twopi));",
-			"}",
+			"   printall(pow(pi, multiplier[2], 3 == 3) * (4.7 + 2));",
+			"   return 0;",
+			"}"
 		)
 		val tokens = Lexer(lines)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
+	}
+
+	test("LexerParser.FailFloatArrayLen") {
+		val lines = Seq("int x[2.4];")
+		val tokens = Lexer(lines)
+		val tree = Parser(tokens, Parser.readVarDecl)
+		assert(tree.isFailure)
 	}
 }

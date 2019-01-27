@@ -230,7 +230,8 @@ object Parser {
 	def readExpressionStatement(stream: TokStream): Try[ExpressionStatementNode] = {
 		// expression ;|;
 		stream.extractIf(
-			Match(Seq(Right(readExpression), Left(_.tok == TokType.SEMICOLON)))
+			Optional(Seq(Right(readExpression))),
+			Match(Seq(Left(_.tok == TokType.SEMICOLON))),
 		) match {
 			case Success((_, seq)) if seq.length == 1 => Success(ExpressionStatementNode(Some(seq.head.asInstanceOf[Expression])))
 			case Success((_, _)) => Success(ExpressionStatementNode())

@@ -134,6 +134,8 @@ class ParserTest extends FunSuite {
 			Token(TokType.COMMA, ",", 1),
 			Token(TokType.TYPE, "float", 1),
 			Token(TokType.IDENTIFIER, "argv", 1),
+			Token(TokType.OBRACKET, "[", 1),
+			Token(TokType.CBRACKET, "]", 1),
 			Token(TokType.CPAREN, ")", 1),
 			Token(TokType.OBRACE, "{", 1),
 
@@ -152,7 +154,7 @@ class ParserTest extends FunSuite {
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
 		val expect = ProgramNode(Seq(
-			FunDeclNode("int", "main", Seq(ParamNode("int", "argc"), ParamNode("float", "argv")), CompoundStatementNode(
+			FunDeclNode("int", "main", Seq(ParamNode("int", "argc"), ParamNode("float", "argv", array = true)), CompoundStatementNode(
 				Seq(VarDeclNode("int", "x", None, Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(NumNode(Left(4)))))))),
 				Seq(ReturnStatementNode(Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(VarNode("x"))))))),
 			))

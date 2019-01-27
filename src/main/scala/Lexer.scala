@@ -246,7 +246,7 @@ object Lexer {
 				// if this regex matches, set our return to the longer of the tokens
 				case tk._2(tok, rest) => if (ta._1.tok != TokType.ERROR && ta._1.text.length >= tok.length) ta else (Token(tk._1, tok, line), rest)
 				// if not, just return ta
-				case _ => ta;
+				case _ => ta
 			}
 		})
 

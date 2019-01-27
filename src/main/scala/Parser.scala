@@ -104,13 +104,14 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 	}
 
 	private def __extractIf(conds: Seq[TokStreamMatch]): Try[(Seq[Token], Seq[ASTNode])] = {
-		val rettok = new ArrayBuffer[Token]
-		val ret = new ArrayBuffer[ASTNode]
+		val ret = new ArrayBuffer[Either[Token, ASTNode]]
 
 		def readExpr(expr: Either[Token => Boolean, TokStream => Try[ASTNode]]): Try[Either[Token, ASTNode]] = {
 			if (this.empty) return Failure(new ParseException("Stream is empty"))
 			expr match {
-				case Left(c) => if (c(this.peek)) Success(Left(this.extract)) else Failure(new ParseException(this.peek.text))
+				case Left(c) =>
+					if (c(this.peek)) Success(Left(this.extract))
+					else Failure(new ParseException(this.peek.text))
 				case Right(c) => c(this) match {
 					case Success(v) => Success(Right(v));
 					case Failure(e) => Failure(e)
@@ -118,33 +119,34 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 			}
 		}
 
-		def append(e: Either[Token, ASTNode]): Unit = e match {case Left(t) => rettok += t; case Right(a) => ret += a}
-
 		for (cond <- conds) {
 			cond match {
-				case Match(v) => v.foreach(readExpr(_) match {
-					case Success(w) => append(w);
+				case Match(v) => for (q <- v) readExpr(q) match {
+					case Success(w) => ret += w
 					case Failure(e) => return Failure(e)
-				})
-				case Optional(v) =>
-					val ind = this.index
-					for (_ <- v) {
-						readExpr(_) match {
-							case Success(w) => append(w); ctr += 1; ind = this.index
-							case Failure(_) => this.index = ind,
-						}
-					}
 				}
-				case Vararg(v) => v.foreach((w: Either[Token => Boolean, TokStream => Try[ASTNode]]) => {
-					def m(x: Either[Token => Boolean, TokStream => Try[ASTNode]]): Boolean = readExpr(x) match {
-						case Success(y) => append(y); true
-						case Failure(_) => false
+				case Optional(v) =>
+					var ctr = 0
+					var ind = this.index
+					breakable { for (q <- v) readExpr(q) match {
+						case Success(w) => ret += w; ctr += 1; ind = this.index
+						case Failure(_) => ret.remove(ret.length - ctr, ctr); this.index = ind; break
+					}}
+				case Vararg(v) =>
+					def m(x: Seq[Either[Token => Boolean, TokStream => Try[ASTNode]]]): Boolean = {
+						val tmp = new ArrayBuffer[Either[Token, ASTNode]]
+						val indexOld = this.index
+						for (q <- x) readExpr(q) match {
+							case Success(y) => tmp += y;
+							case Failure(_) => this.index = indexOld; return false
+						}
+						ret ++= tmp
+						true
 					}
-					while (m(w)) {}
-				})
+					while (m(v)) {}
 			}
 		}
-		Success((rettok, ret))
+		Success((ret.collect{case Left(t) => t}, ret.collect{case Right(a) => a}))
 	}
 
 	override def extractIf(conds: TokStreamMatch*): Try[(Seq[Token], Seq[ASTNode])] = {
@@ -239,7 +241,7 @@ object Parser {
 	def readSelectionStatement(stream: TokStream): Try[SelectionStatementNode] = {
 		// if ( expression ) statement else statement
 		stream.extractIf(
-			Match(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "if"), Left(_.tok == TokType.CPAREN), Right(readExpression), Right(readStatement))),
+			Match(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "if"), Left(_.tok == TokType.OPAREN), Right(readExpression), Left(_.tok == TokType.CPAREN), Right(readStatement))),
 			Optional(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "else"), Right(readStatement))),
 		) match {
 			case Success((_, seq)) if seq.length == 3 => Success(SelectionStatementNode(seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement], Some(seq(2).asInstanceOf[Statement])))
@@ -337,8 +339,7 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.OPAREN), Right(readExpression), Left(_.tok == TokType.CPAREN))),
 		) match {
-			case Success((_, seq)) =>
-				Success(ParenExpressionNode(seq.head.asInstanceOf[Expression]))
+			case Success((_, seq)) => Success(ParenExpressionNode(seq.head.asInstanceOf[Expression]))
 			case Failure(e) => Failure(new ParseException(s"Expected paren-expression\n${e.getMessage}"))
 		}
 	}

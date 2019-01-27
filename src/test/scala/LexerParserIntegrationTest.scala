@@ -10,7 +10,6 @@ class LexerParserIntegrationTest extends FunSuite {
 		assert(tree.isSuccess)
 	}
 
-	/*
 	test("LexerParser.Basic") {
 		val lines = Seq(
 			"2 +(3*4)"
@@ -47,13 +46,11 @@ class LexerParserIntegrationTest extends FunSuite {
 			"",
 			"int main(void) {",
 			"   float twopi = 2 * pi;",
-			"   print(2 + (3 + (4 * square()) * square(twopi));",
+			"   print(2 + (3 + (4 * square())) * square(twopi));",
 			"}",
 		)
 		val tokens = Lexer(lines)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
 	}
-	*/
-
 }

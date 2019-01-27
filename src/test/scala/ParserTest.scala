@@ -3,26 +3,26 @@ import org.scalatest.FunSuite
 class ParserTest extends FunSuite {
 	test("Parser.ArithmeticComplicated") {
 		val tokens = Seq(
-			Token(TokenType.INT, "46", 1),
-			Token(TokenType.MULOP, "*", 1),
-			Token(TokenType.PUNCTUATION, "(", 1),
-			Token(TokenType.IDENTIFIER, "x", 1),
-			Token(TokenType.ADDOP, "+", 1),
-			Token(TokenType.IDENTIFIER, "y", 1),
-			Token(TokenType.PUNCTUATION, "(", 1),
-			Token(TokenType.PUNCTUATION, ")", 1),
-			Token(TokenType.MULOP, "/", 1),
-			Token(TokenType.IDENTIFIER, "z", 1),
-			Token(TokenType.PUNCTUATION, "(", 1),
-			Token(TokenType.IDENTIFIER, "x", 1),
-			Token(TokenType.PUNCTUATION, ",", 1),
-			Token(TokenType.IDENTIFIER, "y", 1),
-			Token(TokenType.PUNCTUATION, ",", 1),
-			Token(TokenType.INT, "47", 1),
-			Token(TokenType.ADDOP, "-", 1),
-			Token(TokenType.INT, "2", 1),
-			Token(TokenType.PUNCTUATION, ")", 1),
-			Token(TokenType.PUNCTUATION, ")", 1),
+			Token(TokType.INT, "46", 1),
+			Token(TokType.MULOP, "*", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.IDENTIFIER, "x", 1),
+			Token(TokType.ADDOP, "+", 1),
+			Token(TokType.IDENTIFIER, "y", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.MULOP, "/", 1),
+			Token(TokType.IDENTIFIER, "z", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.IDENTIFIER, "x", 1),
+			Token(TokType.COMMA, ",", 1),
+			Token(TokType.IDENTIFIER, "y", 1),
+			Token(TokType.COMMA, ",", 1),
+			Token(TokType.INT, "47", 1),
+			Token(TokType.ADDOP, "-", 1),
+			Token(TokType.INT, "2", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.CPAREN, ")", 1),
 		)
 		val tree = Parser(tokens, Parser.readSimpleExpression)
 		assert(tree.isSuccess)
@@ -79,9 +79,9 @@ class ParserTest extends FunSuite {
 
 	test("Parser.ArithmeticBasic") {
 		val tokens = Seq(
-			Token(TokenType.INT, "46", 1),
-			Token(TokenType.ADDOP, "+", 1),
-			Token(TokenType.INT, "2", 1),
+			Token(TokType.INT, "46", 1),
+			Token(TokType.ADDOP, "+", 1),
+			Token(TokType.INT, "2", 1),
 		)
 		val tree = Parser(tokens, Parser.readSimpleExpression)
 		assert(tree.isSuccess)
@@ -98,18 +98,18 @@ class ParserTest extends FunSuite {
 
 	test("Parser.Basic") {
 		val tokens = Seq(
-			Token(TokenType.TYPE, "int", 1),
-			Token(TokenType.IDENTIFIER, "main", 1),
-			Token(TokenType.PUNCTUATION, "(", 1),
-			Token(TokenType.TYPE, "void", 1),
-			Token(TokenType.PUNCTUATION, ")", 1),
-			Token(TokenType.PUNCTUATION, "{", 1),
+			Token(TokType.TYPE, "int", 1),
+			Token(TokType.IDENTIFIER, "main", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.TYPE, "void", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.OBRACE, "{", 1),
 
-			Token(TokenType.KEYWORD, "return", 2),
-			Token(TokenType.INT, "0", 2),
-			Token(TokenType.PUNCTUATION, ";", 2),
+			Token(TokType.KEYWORD, "return", 2),
+			Token(TokType.INT, "0", 2),
+			Token(TokType.SEMICOLON, ";", 2),
 
-			Token(TokenType.PUNCTUATION, "}", 3),
+			Token(TokType.CBRACE, "}", 3),
 		)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
@@ -126,28 +126,28 @@ class ParserTest extends FunSuite {
 
 	test("Parser.ParamsVarDecl") {
 		val tokens = Seq(
-			Token(TokenType.TYPE, "int", 1),
-			Token(TokenType.IDENTIFIER, "main", 1),
-			Token(TokenType.PUNCTUATION, "(", 1),
-			Token(TokenType.TYPE, "int", 1),
-			Token(TokenType.IDENTIFIER, "argc", 1),
-			Token(TokenType.PUNCTUATION, ",", 1),
-			Token(TokenType.TYPE, "float", 1),
-			Token(TokenType.IDENTIFIER, "argv", 1),
-			Token(TokenType.PUNCTUATION, ")", 1),
-			Token(TokenType.PUNCTUATION, "{", 1),
+			Token(TokType.TYPE, "int", 1),
+			Token(TokType.IDENTIFIER, "main", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.TYPE, "int", 1),
+			Token(TokType.IDENTIFIER, "argc", 1),
+			Token(TokType.COMMA, ",", 1),
+			Token(TokType.TYPE, "float", 1),
+			Token(TokType.IDENTIFIER, "argv", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.OBRACE, "{", 1),
 
-			Token(TokenType.TYPE, "int", 2),
-			Token(TokenType.IDENTIFIER, "x", 2),
-			Token(TokenType.ASSGNOP, "=", 2),
-			Token(TokenType.INT, "4", 2),
-			Token(TokenType.PUNCTUATION, ";", 2),
+			Token(TokType.TYPE, "int", 2),
+			Token(TokType.IDENTIFIER, "x", 2),
+			Token(TokType.ASSGNOP, "=", 2),
+			Token(TokType.INT, "4", 2),
+			Token(TokType.SEMICOLON, ";", 2),
 
-			Token(TokenType.KEYWORD, "return", 3),
-			Token(TokenType.IDENTIFIER, "x", 3),
-			Token(TokenType.PUNCTUATION, ";", 3),
+			Token(TokType.KEYWORD, "return", 3),
+			Token(TokType.IDENTIFIER, "x", 3),
+			Token(TokType.SEMICOLON, ";", 3),
 
-			Token(TokenType.PUNCTUATION, "}", 3),
+			Token(TokType.CBRACE, "}", 3),
 		)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)

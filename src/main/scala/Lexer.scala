@@ -1,21 +1,20 @@
-import scala.collection.immutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
 /**
   * An enum representing the types of tokens this Lexer can handle.
   */
-object TokenType extends Enumeration {
-	val ADDOP, ASSGNOP, CHUCK_E_CHEESE, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, PUNCTUATION, RELOP, TYPE = Value
+object TokType extends Enumeration {
+	val ADDOP, ASSGNOP, CBRACE, CBRACKET, COMMA, CPAREN, CHUCK_E_CHEESE, ERROR, FLOAT, IDENTIFIER, INT, KEYWORD, MULOP, OBRACE, OBRACKET, OPAREN, RELOP, SEMICOLON, TYPE = Value
 }
 
 /**
   * An immutable data class containing a token.
-  * @param tok  The TokenType of this token.
+  * @param tok  The TokType of this token.
   * @param text The actual text in this token.
   * @param line The line this token occurs on.
   */
-case class Token(tok: TokenType.Value, text: String, line: Int) {
+case class Token(tok: TokType.Value, text: String, line: Int) {
 	override def toString: String = s"($line,$tok," + "\"" + s"$text" + "\")"
 }
 
@@ -42,7 +41,7 @@ object Lexer {
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
 	  */
-	private def buildRegex(c: Iterable[String]): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_)).substring(1) + ")(.*)$").r
+	private def buildRegex(c: String*): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_)).substring(1) + ")(.*)$").r
 
 	/**
 	  * Builds a bounded regex out of an iterable.
@@ -54,19 +53,7 @@ object Lexer {
 	  * @param c The collection of elements. This must be iterable (foreach)
 	  * @return  The corresponding regex.
 	  */
-	private def buildRegexBounded(c: Iterable[String]): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_) + "\\b").substring(1) + ")(.*)$").r
-
-	/**
-	  * Iterables containing strings belonging to a token class
-	  * These are matched greedily from left to right, so "==" is matched before "="
-	  */
-	private val addOps       = HashSet("+", "-")
-	private val assgnOps     = HashSet("=")
-	private val keywords     = HashSet("else", "if", "return", "while")
-	private val mulOps       = HashSet("*", "/")
-	private val punctuation  = HashSet("{", "}", "(", ")", ";", ",")
-	private val relOps       = Seq(">=", "<=", "==", "!=", ">", "<")
-	private val types        = HashSet("float", "int", "void")
+	private def buildRegexBounded(c: String*): Regex = ("^(" + c.fold("")(_ + "|" + standardizeRegex(_) + "\\b").substring(1) + ")(.*)$").r
 
 	/**
 	  * Matches floats.
@@ -185,17 +172,24 @@ object Lexer {
 	  *     Group 2 - The rest of the string.
 	  * Earlier groups are matched before later ones.
 	  */
-	private val tokenClasses: Seq[(TokenType.Value, Regex)] = Seq(
-		(TokenType.ADDOP, buildRegex(addOps)),
-		(TokenType.ASSGNOP, buildRegex(assgnOps)),
-		(TokenType.KEYWORD, buildRegexBounded(keywords)),
-		(TokenType.PUNCTUATION, buildRegex(punctuation)),
-		(TokenType.MULOP, buildRegex(mulOps)),
-		(TokenType.RELOP, buildRegex(relOps)),
-		(TokenType.TYPE, buildRegex(types)),
-		(TokenType.FLOAT, floatRegex),
-		(TokenType.IDENTIFIER, identifierRegex),
-		(TokenType.INT, intRegex),
+	private val tokenClasses: Seq[(TokType.Value, Regex)] = Seq(
+		(TokType.ADDOP     , buildRegex("+", "-")),
+		(TokType.ASSGNOP   , buildRegex("=")),
+		(TokType.CBRACE    , buildRegex("}")),
+		(TokType.CBRACKET  , buildRegex("]")),
+		(TokType.COMMA     , buildRegex(",")),
+		(TokType.CPAREN    , buildRegex(")")),
+		(TokType.FLOAT     , floatRegex),
+		(TokType.INT       , intRegex),
+		(TokType.KEYWORD   , buildRegexBounded("else", "if", "return", "while")),
+		(TokType.MULOP     , buildRegex("*", "/")),
+		(TokType.OBRACE    , buildRegex("{")),
+		(TokType.OBRACKET  , buildRegex("[")),
+		(TokType.OPAREN    , buildRegex("(")),
+		(TokType.RELOP     , buildRegex(">=", "<=", "==", "!=", ">", "<")),
+		(TokType.SEMICOLON , buildRegex(";")),
+		(TokType.TYPE      , buildRegex("float", "int", "void")),
+		(TokType.IDENTIFIER, identifierRegex),
 	)
 
 	/**
@@ -245,12 +239,12 @@ object Lexer {
 		  * @param sb The input string.
 		  * @param line The line number.
 		  * @return A tuple containing the extracted token and the rest of the string.
-		  * If none could be matched, it returns a token of type TokenType.ERROR that extracts a single character, returning the rest of the string.
+		  * If none could be matched, it returns a token of type TokType.ERROR that extracts a single character, returning the rest of the string.
 		  */
-		def getToken(sb: String, line: Int): (Token, String) = tokenClasses.foldLeft((Token(TokenType.ERROR, sb.substring(0, 1), line), sb.substring(1)))((ta: (Token, String), tk: (TokenType.Value, Regex)) => {
+		def getToken(sb: String, line: Int): (Token, String) = tokenClasses.foldLeft((Token(TokType.ERROR, sb.substring(0, 1), line), sb.substring(1)))((ta: (Token, String), tk: (TokType.Value, Regex)) => {
 			sb match {
 				// if this regex matches, set our return to the longer of the tokens
-				case tk._2(tok, rest) => if (ta._1.tok != TokenType.ERROR && ta._1.text.length >= tok.length) ta else (Token(tk._1, tok, line), rest)
+				case tk._2(tok, rest) => if (ta._1.tok != TokType.ERROR && ta._1.text.length >= tok.length) ta else (Token(tk._1, tok, line), rest)
 				// if not, just return ta
 				case _ => ta;
 			}
@@ -282,7 +276,7 @@ object Lexer {
 			}
 		}
 		if (commentCtr > 0) {
-			arr += Token(TokenType.ERROR, "Expected */", lines.length)
+			arr += Token(TokType.ERROR, "Expected */", lines.length)
 		}
 		// finally, return the array
 		arr

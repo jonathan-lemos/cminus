@@ -1,3 +1,4 @@
+/*
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
@@ -10,7 +11,7 @@ private final case class RegType(typ: String, arrayLen: Option[Int] = None) exte
 	}
 }
 private final case class FuncType(ret: String, param: Seq[ParamNode]) extends SymTabType {
-	override def toString: String = s"$ret(${param.reduce(_ + "," + _)})"
+	override def toString: String = s"$ret(" + param.foldLeft("")(_ + "," + _.typename).substring(1) + "})"
 }
 
 class SemAnalyzerException(s: String) extends IllegalArgumentException(s)
@@ -151,3 +152,4 @@ object SemAnalyzer {
 		val symtab = new SymTab
 	}
 }
+*/

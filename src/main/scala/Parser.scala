@@ -25,19 +25,25 @@ case class   VarNode(identifier: String, arrayLen: Option[Expression] = None)   
 case class   NumNode(value: Either[Int, Double])                                                                               extends Factor
 case class   ParenExpressionNode(expr: Expression)                                                                             extends Factor
 
-class ParseException(e: Either[Option[Token], (String, ParseException)]) extends IllegalArgumentException(
+class ParseException(e: Either[Option[Token], (String, ParseException)], var va: Option[ParseException] = None) extends IllegalArgumentException(
 	e match {
 		case Left(o) => if (o.isDefined) "Unexpected token " + "\"" + s"${o.get.text}" + "\"" else "Unexpected end of stream"
 		case Right((s, _)) => s
 	}
 ) {
-	def printErr(): Unit = e match {
-		case Left(o) => if (o.isDefined) { Color.printRed("Error"); Color.printYellow(s"(${o.get.line}): "); Color.printPurple(this.getMessage); println() } else { Color.printRed("Error: "); println(this.getMessage) }
-		case Right((s, ex)) => Color.printBlue(s); println(); ex.printErr()
-	}
-	def eos: Boolean = e match {
-		case Left(o) => o.isEmpty
-		case Right((_, ex)) => ex.eos
+	def printErr(): Unit = {
+		e match {
+			case Left(o) => if (o.isDefined) {
+				Color.printRed("Error")
+				Color.printYellow(s"(Line ${o.get.line}): ")
+				Color.printPurple(this.getMessage + "\n")
+			} else {
+				Color.printRed("Error: ")
+				Color.printPurple(this.getMessage + "\n")
+			}
+			case Right((s, ex)) => Color.printBlue(s + "\n"); ex.printErr()
+		}
+		if (va.isDefined) { Color.printPurple("Vararg error:\n"); va.get.printErr() }
 	}
 }
 
@@ -95,10 +101,6 @@ trait TokStream {
 	def extractIf(conds: TokStreamMatch*): Try[(Seq[Token], Seq[ASTNode])]
 
 	/**
-	  *
-	  */
-
-	/**
 	  * Checks if the stream has an element in it.
 	  * @return True if there's at least one element in the stream, false if not.
 	  */
@@ -127,10 +129,10 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 
 	private def __extractIf(conds: Seq[TokStreamMatch]): Try[(Seq[Token], Seq[ASTNode])] = {
 		val ret = new ArrayBuffer[Either[Token, ASTNode]]
-		var exceptionBuf: Option[ParseException] = None
+		var varargExpBuf: Option[ParseException] = None
 
 		def readExpr(expr: Either[Token => Boolean, TokStream => Try[ASTNode]], err: ParseException => ParseException): Try[Either[Token, ASTNode]] = {
-			if (this.empty) return Failure(new ParseException(Left(None)))
+			if (this.empty) return Failure(err(new ParseException(Left(None))))
 			expr match {
 				case Left(c) => if (c(this.peek)) Success(Left(this.extract)) else Failure(err(new ParseException(Left(Some(this.peek)))))
 				case Right(c) => c(this) match {
@@ -144,9 +146,8 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 		for (cond <- conds) {
 			cond match {
 				case Match(v, err) => for (q <- v) readExpr(q, err) match {
-					case Success(w) => ret += w; exceptionBuf = None
-					case Failure(e: ParseException) => if (exceptionBuf.isDefined) return Failure(new ParseException(Right((e.getMessage, exceptionBuf.get)))) else return Failure(e)
-					case Failure(e) => throw e
+					case Success(w) => ret += w; varargExpBuf = None
+					case Failure(e: ParseException) => e.va = varargExpBuf; return Failure(e)
 				}
 				case Optional(v, err) =>
 					var ctr = 0
@@ -161,7 +162,8 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 						val indexOld = this.index
 						for (q <- x) readExpr(q, err) match {
 							case Success(y) => tmp += y;
-							case Failure(e: ParseException) => this.index = indexOld; exceptionBuf = Some(e); return false
+							case Failure(e: ParseException) =>
+								this.index = indexOld; varargExpBuf = Some(e); return false
 							case Failure(e) => throw e
 						}
 						ret ++= tmp
@@ -217,10 +219,11 @@ object Parser {
 			Vararg(Seq(Right(readParam), Left(_.tok == TokType.COMMA))),
 			Match(Seq(Right(readParam), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement))),
 		) orElse stream.extractIf(
-			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN), Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected TYPE IDENTIFIER ( params ) compound-stmt", e))))
+			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN), Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected fun-decl or var-decl", e))))
 		) match {
 			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
-			case Failure(e) => Failure(e)
+			case Failure(e) =>
+				Failure(e)
 		}
 	}
 
@@ -244,7 +247,8 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.CBRACE)), e => new ParseException(Right(("Expected \"}\"", e)))),
 		) match {
 			case Success((_, seq)) => Success(CompoundStatementNode(seq.filter(_.isInstanceOf[VarDeclNode]).asInstanceOf[Seq[VarDeclNode]], seq.filter(_.isInstanceOf[Statement]).asInstanceOf[Seq[Statement]]))
-			case Failure(e) => Failure(e)
+			case Failure(e) =>
+				Failure(e)
 		}
 	}
 
@@ -397,7 +401,7 @@ object Parser {
 
 	def readProgramNode(stream: TokStream): Try[ProgramNode] = {
 		stream.extractIf(
-			Vararg(Seq(Right(readDeclaration)), e => if (!e.eos) return Failure(new ParseException(Right(("Expected declaration", e)))) else e)
+			Vararg(Seq(Right(readDeclaration)), e => if (!stream.empty) return Failure(new ParseException(Right(("Expected declaration", e)))) else e)
 		) match {
 			case Success((_, seq)) => Success(ProgramNode(seq.asInstanceOf[Seq[Declaration]]))
 			case Failure(e) => Failure(e)

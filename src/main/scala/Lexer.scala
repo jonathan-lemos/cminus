@@ -253,7 +253,7 @@ object Lexer {
 		if (debugOutput) { Color.printGreen("Starting Lexer"); println }
 		// Foreach line with line number. The main loop
 		for ((s, i) <- lines.zipWithIndex) {
-			if (debugOutput) { Color.printBlue(s"Input (${i + 1}): " + "\"" + s"$s" + "\""); println }
+			if (debugOutput) { Color.printBlue(s"Input (Line ${i + 1}): " + "\"" + s"$s" + "\""); println }
 
 			var sb = s.trim()
 			// While there is still text in sb, repeatedly extract a token from the beginning

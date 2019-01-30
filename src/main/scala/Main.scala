@@ -9,9 +9,11 @@ object Main extends App {
 		// Read the file as a string, split it into lines
 		val lines = Source.fromFile(args(0)).mkString.split("\n")
 		// Lexically analyze the lines into tokens
+
 		val tokens = Lexer(lines, debugOutput = true)
 		tokens.foreach(t => if (t.tok == TokType.ERROR) {
 			Color.printRed(s"Error(${t.line}): " + "\"" + s"${t.text}" + "\"")
+			println()
 			return
 		})
 	}

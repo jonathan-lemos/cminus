@@ -1,6 +1,57 @@
 import org.scalatest.FunSuite
 
+import scala.util.{Failure, Success}
+
 class ParserTest extends FunSuite {
+		test("Parser.Basic") {
+		val tokens = Seq(
+			Token(TokType.TYPE, "int", 1),
+			Token(TokType.IDENTIFIER, "main", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.TYPE, "void", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.OBRACE, "{", 1),
+
+			Token(TokType.KEYWORD, "return", 2),
+			Token(TokType.INT, "0", 2),
+			Token(TokType.SEMICOLON, ";", 2),
+
+			Token(TokType.CBRACE, "}", 3),
+		)
+		val tree = Parser(tokens)
+		assert(tree.isSuccess)
+		val expect = ProgramNode(Seq(
+			FunDeclNode("int", "main", Seq(), CompoundStatementNode(
+				Seq(),
+				Seq(
+					ReturnStatementNode(Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(NumNode(Left(0)))))))
+				)
+			))
+		))
+		assert(tree.get == expect)
+	}
+
+	test("Parser.SyntaxError") {
+		val tokens = Seq(
+			Token(TokType.TYPE, "int", 1),
+			Token(TokType.IDENTIFIER, "main", 1),
+			Token(TokType.OPAREN, "(", 1),
+			Token(TokType.TYPE, "void", 1),
+			Token(TokType.CPAREN, ")", 1),
+			Token(TokType.OBRACE, "{", 1),
+
+			Token(TokType.KEYWORD, "return", 2),
+			Token(TokType.INT, "0", 2),
+			Token(TokType.INT, "0", 2),
+			Token(TokType.SEMICOLON, ";", 2),
+
+			Token(TokType.CBRACE, "}", 3),
+		)
+		val tree = Parser(tokens)
+		assert(tree.isFailure)
+		tree match {case Failure(e: ParseException) => e.printErr()}
+	}
+
 	test("Parser.ArithmeticComplicated") {
 		val tokens = Seq(
 			Token(TokType.INT, "46", 1),
@@ -93,34 +144,6 @@ class ParserTest extends FunSuite {
 				)))
 			)
 		)
-		assert(tree.get == expect)
-	}
-
-	test("Parser.Basic") {
-		val tokens = Seq(
-			Token(TokType.TYPE, "int", 1),
-			Token(TokType.IDENTIFIER, "main", 1),
-			Token(TokType.OPAREN, "(", 1),
-			Token(TokType.TYPE, "void", 1),
-			Token(TokType.CPAREN, ")", 1),
-			Token(TokType.OBRACE, "{", 1),
-
-			Token(TokType.KEYWORD, "return", 2),
-			Token(TokType.INT, "0", 2),
-			Token(TokType.SEMICOLON, ";", 2),
-
-			Token(TokType.CBRACE, "}", 3),
-		)
-		val tree = Parser(tokens)
-		assert(tree.isSuccess)
-		val expect = ProgramNode(Seq(
-			FunDeclNode("int", "main", Seq(), CompoundStatementNode(
-				Seq(),
-				Seq(
-					ReturnStatementNode(Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(NumNode(Left(0)))))))
-				)
-			))
-		))
 		assert(tree.get == expect)
 	}
 

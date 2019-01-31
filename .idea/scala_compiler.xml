@@ -6,6 +6,24 @@
     <option name="featureWarnings" value="true" />
     <option name="explainTypeErrors" value="true" />
     <option name="continuations" value="true" />
-    <profile name="sbt 1" modules="cminus" />
+    <profile name="sbt 1" modules="cminus">
+      <option name="implicitConversions" value="true" />
+      <option name="higherKinds" value="true" />
+      <option name="existentials" value="true" />
+      <option name="deprecationWarnings" value="true" />
+      <option name="uncheckedWarnings" value="true" />
+      <option name="featureWarnings" value="true" />
+      <parameters>
+        <parameter value="-target:jvm-1.8" />
+        <parameter value="-encoding" />
+        <parameter value="UTF-8" />
+        <parameter value="-Xfuture" />
+        <parameter value="-Yno-adapted-args" />
+        <parameter value="-Ywarn-dead-code" />
+        <parameter value="-Ywarn-numeric-widen" />
+        <parameter value="-Ywarn-value-discard" />
+        <parameter value="-Ywarn-unused" />
+      </parameters>
+    </profile>
   </component>
 </project>

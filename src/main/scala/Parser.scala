@@ -7,7 +7,9 @@ case class   ProgramNode(declarations: Seq[Declaration])                        
 sealed trait Declaration                                                                                                       extends ASTNode
 case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None, right: Option[Expression] = None) extends Declaration
 case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: CompoundStatementNode)          extends Declaration
-case class   ParamNode(typename: String, identifier: String, array: Boolean = false)                                           extends ASTNode
+case class   ParamNode(typename: String, identifier: String, array: Boolean = false)                                           extends ASTNode {
+	override def toString: String = s"$typename${if (array) "[]" else ""}"
+}
 sealed trait Statement                                                                                                         extends ASTNode
 case class   CompoundStatementNode(vardecls: Seq[VarDeclNode], statements: Seq[Statement])                                     extends Statement
 case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None)    extends Statement
@@ -21,7 +23,7 @@ case class   SimpleExpressionNode(left: AdditiveExpressionNode, right: Option[(S
 case class   AdditiveExpressionNode(left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression
 case class   TermNode(left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression
 case class   CallNode(identifier: String, args: Seq[Expression])                                                               extends Factor
-case class   VarNode(identifier: String, arrayLen: Option[Expression] = None)                                                  extends Factor
+case class   VarNode(identifier: String, arrayInd: Option[Expression] = None)                                                  extends Factor
 case class   NumNode(value: Either[Int, Double])                                                                               extends Factor
 case class   ParenExpressionNode(expr: Expression)                                                                             extends Factor
 
@@ -148,6 +150,7 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 				case Match(v, err) => for (q <- v) readExpr(q, err) match {
 					case Success(w) => ret += w; varargExpBuf = None
 					case Failure(e: ParseException) => e.va = varargExpBuf; return Failure(e)
+					case Failure(e) => throw e
 				}
 				case Optional(v, err) =>
 					var ctr = 0
@@ -408,7 +411,7 @@ object Parser {
 		}
 	}
 
-	def apply[T >: ASTNode](tok: Seq[Token], lambda: TokStream => Try[T] = this.readProgramNode _): Try[T] = {
+	def apply[T <: ASTNode](tok: Seq[Token], lambda: TokStream => Try[T] = this.readProgramNode _): Try[T] = {
 		val stream = new SeqTokStream(tok)
 		val res = lambda(stream)
 		res match {

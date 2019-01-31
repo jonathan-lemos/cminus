@@ -1,6 +1,6 @@
 import org.scalatest.FunSuite
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure}
 
 class ParserTest extends FunSuite {
 	test("Parser.SyntaxError") {
@@ -21,7 +21,7 @@ class ParserTest extends FunSuite {
 		)
 		val tree = Parser(tokens)
 		assert(tree.isFailure)
-		tree match {case Failure(e: ParseException) => e.printErr()}
+		tree match {case Failure(e: ParseException) => e.printErr(); case _ => assert(false)}
 	}
 
 	test("Parser.Basic") {

@@ -12,9 +12,7 @@ object Main extends App {
 
 		val tokens = Lexer(lines, debugOutput = true)
 		tokens.foreach(t => if (t.tok == TokType.ERROR) {
-			Color.printRed(s"Error(${t.line}): " + "\"" + s"${t.text}" + "\"")
-			println()
-			return
+			Color.printRed(s"Error(${t.line}): " + "\"" + s"${t.text}" + "\"\n")
 		})
 	}
 }

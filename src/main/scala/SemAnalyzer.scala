@@ -13,7 +13,13 @@ final case class FuncType(ret: String, param: Seq[ParamNode]) extends SymTabType
 	override def toString: String = s"$ret(" + param.foldLeft("")(_ + "," + _.typename).substring(1) + "})"
 }
 
-class SemAnalyzerException(s: String) extends IllegalArgumentException(s)
+class SemAnalyzerException(s: String, line: Int) extends IllegalArgumentException(s) {
+	def prettyPrint(): Unit = {
+		Color.printRed("Error")
+		Color.printYellow(s"(Line $line): ")
+		Color.printPurple(s + "\n")
+	}
+}
 
 private final class SymTab {
 	private val list = new ListBuffer[mutable.HashMap[String, SymTabType]]
@@ -35,23 +41,23 @@ private final class SymTab {
 		None
 	}
 
-	def add(id: String, t: SymTabType): Unit = list.last += ((id, t))
+	def add(id: String, t: SymTabType): Unit = { list.last += ((id, t)); () }
 	def pushScope(): Unit = list += new mutable.HashMap[String, SymTabType]
-	def popScope(): Unit = if (list.nonEmpty) list.remove(list.length - 1)
+	def popScope(): Unit = { if (list.nonEmpty) list.remove(list.length - 1); () }
 }
 
 object SemAnalyzer {
-	def compareTypesExpr(lhs: RegType, rhs: RegType): Try[RegType] = {
-		if (lhs.typ == "void" || rhs.typ == "void") Failure(new SemAnalyzerException("Type void is not allowed in an expression"))
-		if (lhs.arrayLen.isDefined || rhs.arrayLen.isDefined) Failure(new SemAnalyzerException("Array type is not allowed in an expression"))
+	def compareTypesExpr(lhs: RegType, rhs: RegType, line: Int): Try[RegType] = {
+		if (lhs.typ == "void" || rhs.typ == "void") Failure(new SemAnalyzerException("Type void is not allowed in an expression", line))
+		if (lhs.arrayLen.isDefined || rhs.arrayLen.isDefined) Failure(new SemAnalyzerException("Array type is not allowed in an expression", line))
 		if (lhs.typ == "float" || rhs.typ == "float") Success(RegType("float"))
 		Success(RegType("int"))
 	}
 
-	def compareTypesParam(exp: ParamNode, act: RegType): Try[Unit] = {
-		val actPn = ParamNode(act.typ, exp.identifier, act.arrayLen.isDefined)
-		if (exp != actPn) Failure(new SemAnalyzerException(s"Expected type $exp but found unrelated type $actPn"))
-		Success()
+	def compareTypesParam(exp: ParamNode, paramLine: Int, act: RegType): Try[Unit] = {
+		val actPn = ParamNode(exp.line, act.typ, exp.identifier, act.arrayLen.isDefined)
+		if (exp != actPn) Failure(new SemAnalyzerException(s"Expected type $exp but found unrelated type $actPn", paramLine))
+		Success(())
 	}
 
 	def analyzeParenExpression(pe: ParenExpressionNode, st: SymTab): Try[RegType] = analyzeExpression(pe.expr, st)
@@ -59,14 +65,14 @@ object SemAnalyzer {
 	def analyzeNumNode(n: NumNode): Try[RegType] = n.value match {case Left(_) => Success(RegType("int")); case Right(_) => Success(RegType("float"))}
 
 	def analyzeVar(v: VarNode, st: SymTab): Try[RegType] = {
-		val typ = st.getIdType(v.identifier) getOrElse(return Failure(new SemAnalyzerException(s"Identifier ${v.identifier} was not previously declared"))) match {
+		val typ = st.getIdType(v.identifier) getOrElse(return Failure(new SemAnalyzerException(s"Identifier ${v.identifier} was not previously declared", v.line))) match {
 			case r: RegType => r
-			case _: FuncType => return Failure(new SemAnalyzerException("Expected var but found function"))
+			case _: FuncType => return Failure(new SemAnalyzerException("Expected var but found function", v.line))
 		}
 		v.arrayInd match {
 			case Some(expr) => analyzeExpression(expr, st) match {
 				case Success(rt) if rt.typ == "int" => Success(typ)
-				case Success(rt) => Failure(new SemAnalyzerException(s"Expected int expression but found $rt expression"))
+				case Success(rt) => Failure(new SemAnalyzerException(s"Expected int expression but found $rt expression", v.line))
 				case Failure(e) => Failure(e)
 			}
 			case None => Success(typ)
@@ -74,13 +80,13 @@ object SemAnalyzer {
 	}
 
 	def analyzeCall(cn: CallNode, st: SymTab): Try[RegType] = {
-		val ftype = st.getIdType(cn.identifier) getOrElse(return Failure(new SemAnalyzerException(s"Identifier ${cn.identifier} was not previously declared."))) match {
+		val ftype = st.getIdType(cn.identifier) getOrElse(return Failure(new SemAnalyzerException(s"Identifier ${cn.identifier} was not previously declared.", cn.line))) match {
 			case ft: FuncType => ft
-			case _: RegType => return Failure(new SemAnalyzerException(s"Identifier ${cn.identifier} does not refer to a function"))
+			case _: RegType => return Failure(new SemAnalyzerException(s"Identifier ${cn.identifier} does not refer to a function", cn.line))
 		}
 		cn.args.zip(ftype.param).foreach(t => {
 			analyzeExpression(t._1, st) match {
-				case Success(rt) => compareTypesParam(t._2, rt) match {case Failure(e) => return Failure(e); case _ =>}
+				case Success(rt) => compareTypesParam(t._2, cn.line, rt) match {case Failure(e) => return Failure(e); case _ =>}
 				case Failure(e) => return Failure(e)
 			}
 		})
@@ -98,7 +104,7 @@ object SemAnalyzer {
 		val lhsType: RegType = analyzeFactor(t.left, st) match {case Success(l) => l; case Failure(e) => return Failure(e)}
 		t.right match {
 			case Some((_, a)) => analyzeTerm(a, st) match {
-				case Success(rhsType) => compareTypesExpr(lhsType, rhsType)
+				case Success(rhsType) => compareTypesExpr(lhsType, rhsType, t.line)
 				case Failure(e) => Failure(e)
 			}
 			case None => Success(lhsType)
@@ -109,7 +115,7 @@ object SemAnalyzer {
 		val lhsType: RegType = analyzeTerm(ae.left, st) match {case Success(l) => l; case Failure(e) => return Failure(e)}
 		ae.right match {
 			case Some((_, a)) => analyzeAdditiveExpression(a, st) match {
-				case Success(rhsType) => compareTypesExpr(lhsType, rhsType)
+				case Success(rhsType) => compareTypesExpr(lhsType, rhsType, ae.line)
 				case Failure(e) => Failure(e)
 			}
 			case None => Success(lhsType)
@@ -130,9 +136,9 @@ object SemAnalyzer {
 	def analyzeAssignmentExpression(ae: AssignmentExpressionNode, st: SymTab): Try[RegType] = {
 		analyzeExpression(ae.right, st) match {
 			case Success(rt) => st.getIdType(ae.identifier) match {
-				case Some(r) if r == rt => Success(rt)
-				case Some(r) => Failure(new SemAnalyzerException(s"${ae.identifier} is of type $r but expression of type $rt assigned to it"))
-				case None => Failure(new SemAnalyzerException(s"Undeclared identifier ${ae.identifier} used"))
+				case Some(r: RegType) => compareTypesExpr(rt, r, ae.line)
+				case Some(_) => Failure(new SemAnalyzerException(s"Cannot assign function type to variable ${ae.identifier}", ae.line))
+				case None => Failure(new SemAnalyzerException(s"Undeclared identifier ${ae.identifier} used", ae.line))
 			}
 			case Failure(e) => Failure(e)
 		}
@@ -149,24 +155,24 @@ object SemAnalyzer {
 	def analyzeExpressionStatement(es: ExpressionStatementNode, st: SymTab): Try[Unit] = {
 		es.expression match {
 			case Some(expr) => analyzeExpression(expr, st) match {
-				case Success(_) => Success()
+				case Success(_) => Success(())
 				case Failure(e) => Failure(e)
 			}
-			case None => Success()
+			case None => Success(())
 		}
 	}
 
 	def analyzeReturnStatement(rs: ReturnStatementNode, st: SymTab): Try[Unit] = {
 		rs.expression match {
 			case Some(expr) => analyzeExpression(expr, st) match {
-				case Failure(e) => return Failure(e)
+				case Failure(e) => Failure(e)
 				case Success(rt) => st.retType match {
-					case Some(s) => if (rt == s) Success() else Failure(new SemAnalyzerException(s"Expected return type $s but got return type $rt"))
+					case Some(s) => if (rt == s) Success(()) else Failure(new SemAnalyzerException(s"Expected return type $s but got return type $rt"))
 					case None => Failure(new SemAnalyzerException("Return statement outside of function"))
 				}
 			}
 			case None => st.retType match {
-				case Some(s) if s.typ == "void" => Success()
+				case Some(s) if s.typ == "void" => Success(())
 				case Some(_) => Failure(new SemAnalyzerException(s"Expected return type void but found expression"))
 				case None => Failure(new SemAnalyzerException("Return statement outside of function"))
 			}
@@ -176,7 +182,7 @@ object SemAnalyzer {
 	def analyzeIterationStatement(is: IterationStatementNode, st: SymTab): Try[Unit] = {
 		analyzeExpression(is.condition, st) match {case Failure(e) => return Failure(e); case _ =>}
 		analyzeStatement(is.statement, st) match {case Failure(e) => return Failure(e); case _ =>}
-		Success()
+		Success(())
 	}
 
 	def analyzeSelectionStatement(ss: SelectionStatementNode, st: SymTab): Try[Unit] = {
@@ -185,9 +191,9 @@ object SemAnalyzer {
 		ss.elseStatement match {
 			case Some(s) => analyzeStatement(s, st) match {
 				case Failure(e) => Failure(e);
-				case _ => Success()
+				case _ => Success(())
 			}
-			case None => Success()
+			case None => Success(())
 		}
 	}
 
@@ -204,14 +210,14 @@ object SemAnalyzer {
 		for (v <- cs.vardecls) analyzeVarDecl(v, st) match {case Failure(e) => return Failure(e); case _ =>}
 		for (s <- cs.statements) analyzeStatement(s, st) match {case Failure(e) => return Failure(e); case _ =>}
 		st.popScope()
-		Success()
+		Success(())
 	}
 
 	def analyzeVarDecl(vd: VarDeclNode, st: SymTab): Try[Unit] = {
 		if (st.hasId(vd.identifier)) Failure(new SemAnalyzerException(s"Identifier ${vd.identifier} was already declared."))
 		if (vd.typename == "void") Failure(new SemAnalyzerException(s"Cannot instantiate a variable of type void."))
 		st.add(vd.identifier, RegType(vd.typename, vd.arrayLen))
-		Success()
+		Success(())
 	}
 
 	def analyzeFunDecl(fd: FunDeclNode, st: SymTab): Try[Unit] = {
@@ -219,7 +225,7 @@ object SemAnalyzer {
 		st.retType = Some(RegType(fd.returnType, None))
 		analyzeCompoundStatement(fd.body, st) match {case Failure(e) => return Failure(e); case _ =>}
 		st.retType = None
-		Success()
+		Success(())
 	}
 
 	def analyzeProgramNode(pn: ProgramNode, st: SymTab): Try[Unit] = {
@@ -229,7 +235,7 @@ object SemAnalyzer {
 				case f: FunDeclNode => analyzeFunDecl(f, st)
 			}) match {case Failure(e) => return Failure(e); case _ =>}
 		}
-		Success()
+		Success(())
 	}
 
 	def apply(root: ProgramNode): Try[Unit] = {

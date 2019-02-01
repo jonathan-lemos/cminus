@@ -3,14 +3,14 @@ import org.scalatest.FunSuite
 import scala.util.{Failure, Success, Try}
 
 class SeqTokStreamTest extends FunSuite {
-	case class ExprNode(i: Int, addop: String, f: Float) extends ASTNode
+	case class ExprNode(line: Int, i: Int, addop: String, f: Float) extends ASTNode
 
 	def readExpr(stream: TokStream): Try[ASTNode] = {
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.INT), Left(_.tok == TokType.ADDOP), Left(_.tok == TokType.FLOAT)))
 		) match {
 			case Success((tok, _)) =>
-				Success(ExprNode(tok.head.text.toInt, tok(1).text, tok(2).text.toFloat))
+				Success(ExprNode(tok.head.line, tok.head.text.toInt, tok(1).text, tok(2).text.toFloat))
 			case Failure(e) => Failure(e)
 		}
 	}

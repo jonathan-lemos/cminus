@@ -41,11 +41,12 @@ class ParserTest extends FunSuite {
 		)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
-		val expect = ProgramNode(Seq(
-			FunDeclNode("int", "main", Seq(), CompoundStatementNode(
+		val expect = ProgramNode(1, Seq(
+			FunDeclNode(1, "int", "main", Seq(), CompoundStatementNode(
+				1,
 				Seq(),
 				Seq(
-					ReturnStatementNode(Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(NumNode(Left(0)))))))
+					ReturnStatementNode(2, Some(SimpleExpressionNode(2, AdditiveExpressionNode(2, TermNode(2, NumNode(2, Left(0)))))))
 				)
 			))
 		))
@@ -79,35 +80,49 @@ class ParserTest extends FunSuite {
 		assert(tree.isSuccess)
 		val expect =
 			SimpleExpressionNode(
+				1,
 				AdditiveExpressionNode(
-					TermNode(NumNode(Left(46)),
+					1,
+					TermNode(1, NumNode(1, Left(46)),
 						Some(("*",
 								TermNode(
+									1,
 									ParenExpressionNode(
+										1,
 										SimpleExpressionNode(
+											1,
 											AdditiveExpressionNode(
-												TermNode(VarNode("x")),
+												1,
+												TermNode(1, VarNode(1, "x")),
 												Some(("+",
 														AdditiveExpressionNode(
-															TermNode(CallNode("y",Seq()),
+															1,
+															TermNode(1, CallNode(1, "y",Seq()),
 																Some(("/",
-																		TermNode(CallNode("z",Seq(
+																		TermNode(1, CallNode(1, "z",Seq(
 																			SimpleExpressionNode(
+																				1,
 																				AdditiveExpressionNode(
-																					TermNode(VarNode("x"))
+																					1,
+																					TermNode(1, VarNode(1, "x"))
 																				)
 																			),
 																			SimpleExpressionNode(
+																				1,
 																				AdditiveExpressionNode(
-																					TermNode(VarNode("y"))
+																					1,
+																					TermNode(1, VarNode(1, "y"))
 																				)
 																			),
 																			SimpleExpressionNode(
+																				1,
 																				AdditiveExpressionNode(
-																					TermNode(NumNode(Left(47))),
+																					1,
+																					TermNode(1, NumNode(1, Left(47))),
 																					Some(("-",
 																							AdditiveExpressionNode(
-																								TermNode(NumNode(Left(2)))
+																								1,
+																								TermNode(1, NumNode(1, Left(2)))
 																							)
 																					))
 																				)
@@ -137,10 +152,13 @@ class ParserTest extends FunSuite {
 		val tree = Parser(tokens, Parser.readSimpleExpression)
 		assert(tree.isSuccess)
 		val expect = SimpleExpressionNode(
+			1,
 			AdditiveExpressionNode(
-				TermNode(NumNode(Left(46))),
+				1,
+				TermNode(1, NumNode(1, Left(46))),
 				Some(("+", AdditiveExpressionNode(
-					TermNode(NumNode(Left(2))),
+					1,
+					TermNode(1, NumNode(1, Left(2))),
 				)))
 			)
 		)
@@ -176,10 +194,11 @@ class ParserTest extends FunSuite {
 		)
 		val tree = Parser(tokens)
 		assert(tree.isSuccess)
-		val expect = ProgramNode(Seq(
-			FunDeclNode("int", "main", Seq(ParamNode("int", "argc"), ParamNode("float", "argv", array = true)), CompoundStatementNode(
-				Seq(VarDeclNode("int", "x", None, Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(NumNode(Left(4)))))))),
-				Seq(ReturnStatementNode(Some(SimpleExpressionNode(AdditiveExpressionNode(TermNode(VarNode("x"))))))),
+		val expect = ProgramNode(1, Seq(
+			FunDeclNode(1, "int", "main", Seq(ParamNode(1, "int", "argc"), ParamNode(1, "float", "argv", array = true)), CompoundStatementNode(
+				1,
+				Seq(VarDeclNode(2, "int", "x", None, Some(SimpleExpressionNode(2, AdditiveExpressionNode(2, TermNode(2, NumNode(2, Left(4)))))))),
+				Seq(ReturnStatementNode(3, Some(SimpleExpressionNode(3, AdditiveExpressionNode(3, TermNode(3, VarNode(3, "x"))))))),
 			))
 		))
 		assert(tree.get == expect)

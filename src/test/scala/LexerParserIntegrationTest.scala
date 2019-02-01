@@ -19,15 +19,22 @@ class LexerParserIntegrationTest extends FunSuite {
 		assert(tree.isSuccess)
 		val expect =
 		SimpleExpressionNode(
+			1,
 			AdditiveExpressionNode(
-				TermNode(NumNode(Left(2))),
+				1,
+				TermNode(1, NumNode(1, Left(2))),
 				Some(("+",AdditiveExpressionNode(
+					1,
 					TermNode(
+						1,
 						ParenExpressionNode(
+							1,
 							SimpleExpressionNode(
+								1,
 								AdditiveExpressionNode(
-									TermNode(NumNode(Left(3)),
-										Some(("*",TermNode(NumNode(Left(4)))))))))))))))
+									1,
+									TermNode(1, NumNode(1, Left(3)),
+										Some(("*",TermNode(1, NumNode(1, Left(4)))))))))))))))
 		assert(tree.get == expect)
 	}
 

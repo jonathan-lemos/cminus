@@ -2,30 +2,30 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks._
 
-trait ASTNode
-case class   ProgramNode(declarations: Seq[Declaration])                                                                       extends ASTNode
-sealed trait Declaration                                                                                                       extends ASTNode
-case class   VarDeclNode(typename: String, identifier: String, arrayLen: Option[Int] = None, right: Option[Expression] = None) extends Declaration
-case class   FunDeclNode(returnType: String, identifier: String, params: Seq[ParamNode], body: CompoundStatementNode)          extends Declaration
-case class   ParamNode(typename: String, identifier: String, array: Boolean = false)                                           extends ASTNode {
+trait ASTNode { val line: Int }
+case class   ProgramNode(line: Int, declarations: Seq[Declaration])                                                                       extends ASTNode
+sealed trait Declaration                                                                                                                  extends ASTNode
+case class   VarDeclNode(line: Int, typename: String, identifier: String, arrayLen: Option[Int] = None, right: Option[Expression] = None) extends Declaration
+case class   FunDeclNode(line: Int, returnType: String, identifier: String, params: Seq[ParamNode], body: CompoundStatementNode)          extends Declaration
+case class   ParamNode(line: Int, typename: String, identifier: String, array: Boolean = false)                                           extends ASTNode {
 	override def toString: String = s"$typename${if (array) "[]" else ""}"
 }
-sealed trait Statement                                                                                                         extends ASTNode
-case class   CompoundStatementNode(vardecls: Seq[VarDeclNode], statements: Seq[Statement])                                     extends Statement
-case class   SelectionStatementNode(condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None)    extends Statement
-case class   IterationStatementNode(condition: Expression, statement: Statement)                                               extends Statement
-case class   ReturnStatementNode(expression: Option[Expression] = None)                                                        extends Statement
-case class   ExpressionStatementNode(expression: Option[Expression] = None)                                                    extends Statement
-sealed trait Expression                                                                                                        extends ASTNode
-sealed trait Factor                                                                                                            extends Expression
-case class   AssignmentExpressionNode(identifier: String, right: Expression)                                                   extends Expression
-case class   SimpleExpressionNode(left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)        extends Expression
-case class   AdditiveExpressionNode(left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression
-case class   TermNode(left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression
-case class   CallNode(identifier: String, args: Seq[Expression])                                                               extends Factor
-case class   VarNode(identifier: String, arrayInd: Option[Expression] = None)                                                  extends Factor
-case class   NumNode(value: Either[Int, Double])                                                                               extends Factor
-case class   ParenExpressionNode(expr: Expression)                                                                             extends Factor
+sealed trait Statement                                                                                                                    extends ASTNode
+case class   CompoundStatementNode(line: Int, vardecls: Seq[VarDeclNode], statements: Seq[Statement])                                     extends Statement
+case class   SelectionStatementNode(line: Int, condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None)    extends Statement
+case class   IterationStatementNode(line: Int, condition: Expression, statement: Statement)                                               extends Statement
+case class   ReturnStatementNode(line: Int, expression: Option[Expression] = None)                                                        extends Statement
+case class   ExpressionStatementNode(line: Int, expression: Option[Expression] = None)                                                    extends Statement
+sealed trait Expression                                                                                                                   extends ASTNode
+sealed trait Factor                                                                                                                       extends Expression
+case class   AssignmentExpressionNode(line: Int, identifier: String, right: Expression)                                                   extends Expression
+case class   SimpleExpressionNode(line: Int, left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)        extends Expression
+case class   AdditiveExpressionNode(line: Int, left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression
+case class   TermNode(line: Int, left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression
+case class   CallNode(line: Int, identifier: String, args: Seq[Expression])                                                               extends Factor
+case class   VarNode(line: Int, identifier: String, arrayInd: Option[Expression] = None)                                                  extends Factor
+case class   NumNode(line: Int, value: Either[Int, Double])                                                                               extends Factor
+case class   ParenExpressionNode(line: Int, expr: Expression)                                                                             extends Factor
 
 class ParseException(e: Either[Option[Token], (String, ParseException)], var va: Option[ParseException] = None) extends IllegalArgumentException(
 	e match {
@@ -206,16 +206,16 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected \";\"", e)))),
 		) match {
 			case Success((tok, ast)) => tok.length match {
-				case 4 => Success(VarDeclNode(tok.head.text, tok(1).text, None, Some(ast.head.asInstanceOf[Expression])))
-				case 3 => Success(VarDeclNode(tok.head.text, tok(1).text))
-				case 7 => Success(VarDeclNode(tok.head.text, tok(1).text, Some(tok(3).text.toInt), Some(ast.head.asInstanceOf[Expression])))
-				case 6 => Success(VarDeclNode(tok.head.text, tok(1).text, Some(tok(3).text.toInt)))
+				case 4 => Success(VarDeclNode(tok.head.line, tok.head.text, tok(1).text, None, Some(ast.head.asInstanceOf[Expression])))
+				case 3 => Success(VarDeclNode(tok.head.line, tok.head.text, tok(1).text))
+				case 7 => Success(VarDeclNode(tok.head.line, tok.head.text, tok(1).text, Some(tok(3).text.toInt), Some(ast.head.asInstanceOf[Expression])))
+				case 6 => Success(VarDeclNode(tok.head.line, tok.head.text, tok(1).text, Some(tok(3).text.toInt)))
 			}
 			case Failure(e) => Failure(e)
 		}
 	}
 
-	def readFunDecl(stream: TokStream, typeToken: Option[Token] = None, idToken: Option[Token] = None, pncToken: Option[Token] = None): Try[FunDeclNode] = {
+	def readFunDecl(stream: TokStream): Try[FunDeclNode] = {
 		// TYPE ID ( param... ) COMPOUND-STATEMENT
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN))),
@@ -224,7 +224,7 @@ object Parser {
 		) orElse stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN), Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected fun-decl or var-decl", e))))
 		) match {
-			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
+			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.line, tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
 			case Failure(e) =>
 				Failure(e)
 		}
@@ -236,7 +236,7 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected TYPE IDENTIFIER", e)))),
 			Optional(Seq(Left(_.tok == TokType.OBRACKET), Left(_.tok == TokType.CBRACKET))),
 		) match {
-			case Success((seq, _)) => Success(ParamNode(seq.head.text, seq(1).text, seq.length == 4))
+			case Success((seq, _)) => Success(ParamNode(seq.head.line, seq.head.text, seq(1).text, seq.length == 4))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -249,7 +249,7 @@ object Parser {
 			Vararg(Seq(Right(readStatement))),
 			Match(Seq(Left(_.tok == TokType.CBRACE)), e => new ParseException(Right(("Expected \"}\"", e)))),
 		) match {
-			case Success((_, seq)) => Success(CompoundStatementNode(seq.filter(_.isInstanceOf[VarDeclNode]).asInstanceOf[Seq[VarDeclNode]], seq.filter(_.isInstanceOf[Statement]).asInstanceOf[Seq[Statement]]))
+			case Success((tok, seq)) => Success(CompoundStatementNode(tok.head.line, seq.filter(_.isInstanceOf[VarDeclNode]).asInstanceOf[Seq[VarDeclNode]], seq.filter(_.isInstanceOf[Statement]).asInstanceOf[Seq[Statement]]))
 			case Failure(e) =>
 				Failure(e)
 		}
@@ -264,8 +264,8 @@ object Parser {
 			Optional(Seq(Right(readExpression))),
 			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected \";\"", e)))),
 		) match {
-			case Success((_, seq)) if seq.length == 1 => Success(ExpressionStatementNode(Some(seq.head.asInstanceOf[Expression])))
-			case Success((_, _)) => Success(ExpressionStatementNode())
+			case Success((_, seq)) if seq.length == 1 => Success(ExpressionStatementNode(seq.head.line, Some(seq.head.asInstanceOf[Expression])))
+			case Success((tok, _)) => Success(ExpressionStatementNode(tok.head.line))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -276,8 +276,8 @@ object Parser {
 			Match(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "if"), Left(_.tok == TokType.OPAREN), Right(readExpression), Left(_.tok == TokType.CPAREN), Right(readStatement)), e => new ParseException(Right(("Expected if-statement", e)))),
 			Optional(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "else"), Right(readStatement))),
 		) match {
-			case Success((_, seq)) if seq.length == 3 => Success(SelectionStatementNode(seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement], Some(seq(2).asInstanceOf[Statement])))
-			case Success((_, seq)) => Success(SelectionStatementNode(seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement]))
+			case Success((_, seq)) if seq.length == 3 => Success(SelectionStatementNode(seq.head.line, seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement], Some(seq(2).asInstanceOf[Statement])))
+			case Success((_, seq)) => Success(SelectionStatementNode(seq.head.line, seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -287,7 +287,7 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(t => t.tok == TokType.KEYWORD && t.text == "while"), Left(_.tok == TokType.OPAREN), Right(readExpression), Left(_.tok == TokType.CPAREN), Right(readStatement)), e => new ParseException(Right(("Expected while-statement", e)))),
 		) match {
-			case Success((_, seq)) => Success(IterationStatementNode(seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement]))
+			case Success((_, seq)) => Success(IterationStatementNode(seq.head.line, seq.head.asInstanceOf[Expression], seq(1).asInstanceOf[Statement]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -299,8 +299,8 @@ object Parser {
 			Optional(Seq(Right(readExpression))),
 			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected \";\"", e)))),
 		) match {
-			case Success((_, seq)) if seq.length == 1 => Success(ReturnStatementNode(Some(seq.head.asInstanceOf[Expression])))
-			case Success((_, _)) => Success(ReturnStatementNode())
+			case Success((_, seq)) if seq.length == 1 => Success(ReturnStatementNode(seq.head.line, Some(seq.head.asInstanceOf[Expression])))
+			case Success((_, seq)) => Success(ReturnStatementNode(seq.head.line))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -313,7 +313,7 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.ASSGNOP), Right(readExpression)), e => new ParseException(Right(("Expected IDENTIFIER ADDOP EXPRESSION", e))))
 		) match {
-			case Success((tok, seq)) => Success(AssignmentExpressionNode(tok.head.text, seq.head.asInstanceOf[Expression]))
+			case Success((tok, seq)) => Success(AssignmentExpressionNode(tok.head.line, tok.head.text, seq.head.asInstanceOf[Expression]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -324,8 +324,8 @@ object Parser {
 			Match(Seq(Right(readAdditiveExpression)), e => new ParseException(Right(("Expected additive-expression", e)))),
 			Optional(Seq(Left(_.tok == TokType.RELOP), Right(readAdditiveExpression))),
 		) match {
-			case Success((tok, seq)) if seq.length == 2 => Success(SimpleExpressionNode(seq.head.asInstanceOf[AdditiveExpressionNode], Some((tok.head.text, seq(1).asInstanceOf[AdditiveExpressionNode]))))
-			case Success((_, seq)) => Success(SimpleExpressionNode(seq.head.asInstanceOf[AdditiveExpressionNode]))
+			case Success((tok, seq)) if seq.length == 2 => Success(SimpleExpressionNode(seq.head.line, seq.head.asInstanceOf[AdditiveExpressionNode], Some((tok.head.text, seq(1).asInstanceOf[AdditiveExpressionNode]))))
+			case Success((_, seq)) => Success(SimpleExpressionNode(seq.head.line, seq.head.asInstanceOf[AdditiveExpressionNode]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -336,8 +336,8 @@ object Parser {
 			Match(Seq(Right(readTerm)), e => new ParseException(Right(("Expected term", e)))),
 			Optional(Seq(Left(_.tok == TokType.ADDOP), Right(readAdditiveExpression)))
 		) match {
-			case Success((tok, seq)) if seq.length == 2 => Success(AdditiveExpressionNode(seq.head.asInstanceOf[TermNode], Some((tok.head.text, seq(1).asInstanceOf[AdditiveExpressionNode]))))
-			case Success((_, seq)) => Success(AdditiveExpressionNode(seq.head.asInstanceOf[TermNode]))
+			case Success((tok, seq)) if seq.length == 2 => Success(AdditiveExpressionNode(seq.head.line, seq.head.asInstanceOf[TermNode], Some((tok.head.text, seq(1).asInstanceOf[AdditiveExpressionNode]))))
+			case Success((_, seq)) => Success(AdditiveExpressionNode(seq.head.line, seq.head.asInstanceOf[TermNode]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -348,8 +348,8 @@ object Parser {
 			Match(Seq(Right(readFactor)), e => new ParseException(Right(("Expected factor", e)))),
 			Optional(Seq(Left(_.tok == TokType.MULOP), Right(readTerm))),
 		) match {
-			case Success((tok, seq)) if seq.length == 2 => Success(TermNode(seq.head.asInstanceOf[Factor], Some(tok.head.text, seq(1).asInstanceOf[TermNode])))
-			case Success((_, seq)) => Success(TermNode(seq.head.asInstanceOf[Factor]))
+			case Success((tok, seq)) if seq.length == 2 => Success(TermNode(seq.head.line, seq.head.asInstanceOf[Factor], Some((tok.head.text, seq(1).asInstanceOf[TermNode]))))
+			case Success((_, seq)) => Success(TermNode(seq.head.line, seq.head.asInstanceOf[Factor]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -361,8 +361,8 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(t => t.tok == TokType.INT || t.tok == TokType.FLOAT)), e => new ParseException(Right(("Expected num", e)))),
 		) match {
-			case Success((tok, _)) if tok.head.tok == TokType.INT => Success(NumNode(Left(tok.head.text.toInt)))
-			case Success((tok, _)) => Success(NumNode(Right(tok.head.text.toDouble)))
+			case Success((tok, _)) if tok.head.tok == TokType.INT => Success(NumNode(tok.head.line, Left(tok.head.text.toInt)))
+			case Success((tok, _)) => Success(NumNode(tok.head.line, Right(tok.head.text.toDouble)))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -371,7 +371,7 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.OPAREN), Right(readExpression), Left(_.tok == TokType.CPAREN)), e => new ParseException(Right(("Expected ( expression )", e)))),
 		) match {
-			case Success((_, seq)) => Success(ParenExpressionNode(seq.head.asInstanceOf[Expression]))
+			case Success((_, seq)) => Success(ParenExpressionNode(seq.head.line, seq.head.asInstanceOf[Expression]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -385,7 +385,7 @@ object Parser {
 		) orElse stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN), Left(_.tok == TokType.CPAREN)), e => new ParseException(Right(("Expected IDENTIFIER ( param... )", e))))
 		) match {
-			case Success((tok, seq)) => Success(CallNode(tok.head.text, seq.asInstanceOf[Seq[Expression]]))
+			case Success((tok, seq)) => Success(CallNode(tok.head.line, tok.head.text, seq.asInstanceOf[Seq[Expression]]))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -396,8 +396,8 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected identifier", e)))),
 			Optional(Seq(Left(_.tok == TokType.OBRACKET), Right(readExpression), Left(_.tok == TokType.CBRACKET)))
 		) match {
-			case Success((tok, seq)) if seq.length == 1 => Success(VarNode(tok.head.text, Some(seq.head.asInstanceOf[Expression])))
-			case Success((tok, _)) => Success(VarNode(tok.head.text))
+			case Success((tok, seq)) if seq.length == 1 => Success(VarNode(tok.head.line, tok.head.text, Some(seq.head.asInstanceOf[Expression])))
+			case Success((tok, _)) => Success(VarNode(tok.head.line, tok.head.text))
 			case Failure(e) => Failure(e)
 		}
 	}
@@ -406,7 +406,7 @@ object Parser {
 		stream.extractIf(
 			Vararg(Seq(Right(readDeclaration)), e => if (!stream.empty) return Failure(new ParseException(Right(("Expected declaration", e)))) else e)
 		) match {
-			case Success((_, seq)) => Success(ProgramNode(seq.asInstanceOf[Seq[Declaration]]))
+			case Success((_, seq)) => Success(ProgramNode(seq.head.line, seq.asInstanceOf[Seq[Declaration]]))
 			case Failure(e) => Failure(e)
 		}
 	}

@@ -167,14 +167,14 @@ object SemAnalyzer {
 			case Some(expr) => analyzeExpression(expr, st) match {
 				case Failure(e) => Failure(e)
 				case Success(rt) => st.retType match {
-					case Some(s) => if (rt == s) Success(()) else Failure(new SemAnalyzerException(s"Expected return type $s but got return type $rt"))
-					case None => Failure(new SemAnalyzerException("Return statement outside of function"))
+					case Some(s) => if (rt == s) Success(()) else Failure(new SemAnalyzerException(s"Expected return type $s but got return type $rt", rs.line))
+					case None => Failure(new SemAnalyzerException("Return statement outside of function", rs.line))
 				}
 			}
 			case None => st.retType match {
 				case Some(s) if s.typ == "void" => Success(())
-				case Some(_) => Failure(new SemAnalyzerException(s"Expected return type void but found expression"))
-				case None => Failure(new SemAnalyzerException("Return statement outside of function"))
+				case Some(_) => Failure(new SemAnalyzerException(s"Expected return type void but found expression", rs.line))
+				case None => Failure(new SemAnalyzerException("Return statement outside of function", rs.line))
 			}
 		}
 	}

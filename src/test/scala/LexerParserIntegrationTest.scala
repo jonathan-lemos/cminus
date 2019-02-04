@@ -111,7 +111,7 @@ class LexerParserIntegrationTest extends FunSuite {
 		"	int c = 4.0;",
 		"	if (b < 0) return 0.0;",
 		"	while (c * (4 + b + MEGACONSTANT * 5) <= 3e19 / (7 + a(-3e-4 + (3 / 7 + (MEGAFUNCTION() + MEGAFUNCTIONTWO(3, 4e4))))+2)) {",
-		"		c = c - MEGAFUNCTION() + MEGACONSTANT;",
+		"		int d = c - MEGAFUNCTION() + MEGACONSTANT;",
 		"		while(0)return 4;",
 		"		if (c < 0) {",
 		"			if (b < 0)",

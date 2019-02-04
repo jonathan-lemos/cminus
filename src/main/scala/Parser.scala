@@ -18,7 +18,7 @@ case class   ReturnStatementNode(line: Int, expression: Option[Expression] = Non
 case class   ExpressionStatementNode(line: Int, expression: Option[Expression] = None)                                                    extends Statement
 sealed trait Expression                                                                                                                   extends ASTNode
 sealed trait Factor                                                                                                                       extends Expression
-case class   AssignmentExpressionNode(line: Int, identifier: String, right: Expression)                                                   extends Expression
+case class   AssignmentExpressionNode(line: Int, identifier: String, right: Expression, index: Option[Expression] = None)                 extends Expression
 case class   SimpleExpressionNode(line: Int, left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)        extends Expression
 case class   AdditiveExpressionNode(line: Int, left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression
 case class   TermNode(line: Int, left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression
@@ -203,7 +203,7 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected TYPE IDENTIFIER", e)))),
 			Optional(Seq(Left(_.tok == TokType.OBRACKET), Left(_.tok == TokType.INT), Left(_.tok == TokType.CBRACKET))),
 			Optional(Seq(Left(_.tok == TokType.ASSGNOP), Right(readExpression))),
-			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected \";\"", e)))),
+			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected '[INT];' or ';'", e)))),
 		) match {
 			case Success((tok, ast)) => tok.length match {
 				case 4 => Success(VarDeclNode(tok.head.line, tok.head.text, tok(1).text, None, Some(ast.head.asInstanceOf[Expression])))
@@ -222,7 +222,9 @@ object Parser {
 			Vararg(Seq(Right(readParam), Left(_.tok == TokType.COMMA))),
 			Match(Seq(Right(readParam), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement))),
 		) orElse stream.extractIf(
-			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN), Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected fun-decl or var-decl", e))))
+			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected TYPE ID", e)))),
+			Match(Seq(Left(_.tok == TokType.OPAREN)), e => new ParseException(Right(("Expected '[', '=', or '('", e)))),
+			Match(Seq(Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected 'void|param-list ) compound-stmt'", e)))),
 		) match {
 			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.line, tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
 			case Failure(e) =>
@@ -311,8 +313,11 @@ object Parser {
 	def readAssignmentExpression(stream: TokStream): Try[AssignmentExpressionNode] = {
 		// var = expression
 		stream.extractIf(
-			Match(Seq(Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.ASSGNOP), Right(readExpression)), e => new ParseException(Right(("Expected IDENTIFIER ADDOP EXPRESSION", e))))
+			Match(Seq(Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected ID", e)))),
+			Optional(Seq(Left(_.tok == TokType.OBRACKET), Right(readExpression), Left(_.tok == TokType.CBRACKET))),
+			Match(Seq(Left(_.tok == TokType.ASSGNOP), Right(readExpression)), e => new ParseException(Right(("Expected IDENTIFIER ADDOP EXPRESSION", e))))
 		) match {
+			case Success((tok, seq)) if seq.length == 2 => Success(AssignmentExpressionNode(tok.head.line, tok.head.text, seq(1).asInstanceOf[Expression], Some(seq.head.asInstanceOf[Expression])))
 			case Success((tok, seq)) => Success(AssignmentExpressionNode(tok.head.line, tok.head.text, seq.head.asInstanceOf[Expression]))
 			case Failure(e) => Failure(e)
 		}

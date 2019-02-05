@@ -119,7 +119,7 @@ object Lexer {
 	  * ^(-?[0-9]+)(.*)$ - Captures an optional minus followed by 1 or more digits followed by another capture of the rest of the string.
 	  * }}}
 	  */
-	private val intRegex = """^(-?[0-9]+)(.*)$""".r
+	private val intRegex = """^([0-9]+)(.*)$""".r
 
 	/**
 	/*/*

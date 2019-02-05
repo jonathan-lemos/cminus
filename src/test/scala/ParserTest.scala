@@ -203,4 +203,10 @@ class ParserTest extends FunSuite {
 		))
 		assert(tree.get == expect)
 	}
+
+	test("Parser.Empty") {
+		val tokens = Seq()
+		val tree = Parser(tokens)
+		assert(tree.isFailure)
+	}
 }

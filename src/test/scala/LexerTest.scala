@@ -132,4 +132,10 @@ class LexerTest extends FunSuite {
 		)
 		assert(res == expect)
 	}
+
+	test("Lexer.ifa") {
+		val res = Lexer(Seq("ifa"))
+		val expect = Seq(Token(TokType.IDENTIFIER, "ifa", 1))
+		assert(res == expect)
+	}
 }

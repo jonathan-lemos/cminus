@@ -186,7 +186,7 @@ object SemAnalyzer {
 				}
 			}
 			case None => st.getRt match {
-				case Some(s) if s.typ == "void" => Success(RegType("void"))
+				case Some(s) if s.typ == "void" => Success(())
 				case Some(_) => Failure(new SemAnalyzerException(s"Expected return type void but found expression", rs.line))
 				case None => Failure(new SemAnalyzerException("Return statement outside of function", rs.line))
 			}
@@ -225,6 +225,7 @@ object SemAnalyzer {
 	}
 
 	def analyzeVarDecl(vd: VarDeclNode, st: SymTab): Try[Unit] = {
+		if (vd.arrayLen.isDefined && vd.arrayLen.get < 0) return Failure(new SemAnalyzerException(s"Cannot declare array of negative size (${vd.identifier})", vd.line))
 		val lhs = RegType(vd.typename, vd.arrayLen)
 		if (st.hasId(vd.identifier)) return Failure(new SemAnalyzerException(s"Identifier '${vd.identifier}' was already declared.", vd.line))
 		if (lhs.typ == "void") return Failure(new SemAnalyzerException(s"Cannot instantiate a variable of type 'void'.", vd.line))

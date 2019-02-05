@@ -5,19 +5,7 @@ import scala.util.{Failure, Try}
 class SemAnalyzerIntegrationTest extends FunSuite {
 	def prettyPrint(res: Try[Unit]): Unit	= res match {case Failure(e: SemAnalyzerException) => e.prettyPrint(); case _ =>}
 
-	test("SemAnalyzer.BadReturn1") {
-		val lines = Seq(
-			"void main(void) {",
-			"   int x = 4;",
-			"   return x;",
-			"}"
-		)
-		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
-		val analysis = SemAnalyzer(tree)
-		assert(analysis.isFailure)
-	}
-
-	test("SemAnalyzer.BigAccept") {
+	test("SemAnalyzer.BigSuccess") {
 		val lines = Seq(
 			"/*/* does some bullshit */",
 			"MEGA_SYNTAX_ERROR */",
@@ -183,6 +171,18 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 		prettyPrint(analysis)
 	}
 
+	test("SemAnalyzer.BadReturn1") {
+		val lines = Seq(
+			"void main(void) {",
+			"   int x = 4;",
+			"   return x;",
+			"}"
+		)
+		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
+		val analysis = SemAnalyzer(tree)
+		assert(analysis.isFailure)
+	}
+
 	test("SemAnalyzer.AlreadyDeclared2") {
 		val lines = Seq(
 			"int main(void) {",
@@ -223,6 +223,18 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"}",
 			"int main(void) {",
 			"   return 4;",
+			"}",
+		)
+		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
+		val analysis = SemAnalyzer(tree)
+		assert(analysis.isFailure)
+		prettyPrint(analysis)
+	}
+
+	test("SemAnalyzer.ReturnVoid") {
+		val lines = Seq(
+			"void main(void) {",
+            "   return 0;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -330,6 +342,19 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
 		val analysis = SemAnalyzer(tree)
 		assert(analysis.isSuccess)
+		prettyPrint(analysis)
+	}
+
+	test("SemAnalyzer.VoidInExpr") {
+		val lines = Seq(
+			"void x(void) {}",
+			"int main(void) {",
+			"   return 5 + x();",
+			"}"
+		)
+		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
+		val analysis = SemAnalyzer(tree)
+		assert(analysis.isFailure)
 		prettyPrint(analysis)
 	}
 }

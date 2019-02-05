@@ -2,6 +2,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks._
 
+// the below classes are the nodes that can be in our tree
+// thank christ scala lets you define a class on one line
 trait ASTNode { val line: Int }
 case class   ProgramNode(line: Int, declarations: Seq[Declaration])                                                                       extends ASTNode
 sealed trait Declaration                                                                                                                  extends ASTNode
@@ -27,12 +29,27 @@ case class   VarNode(line: Int, identifier: String, arrayInd: Option[Expression]
 case class   NumNode(line: Int, value: Either[Int, Double])                                                                               extends Factor
 case class   ParenExpressionNode(line: Int, expr: Expression)                                                                             extends Factor
 
+/**
+  * An error the parser can output.
+  * Note that about half the time the error message is shit and does not at all describe the error.
+  * At least it tells you the correct line (most of the time).
+  * @param e  Either the erroring token (or None if end of stream), or a tuple of an error message and another ParseException
+  * @param va Vararg error. This optionally contains the last ParseException vararg processing produced.
+  *           This almost never provides useful information.
+  */
 class ParseException(e: Either[Option[Token], (String, ParseException)], var va: Option[ParseException] = None) extends IllegalArgumentException(
+	// Determine error message for IllegalArgumentException superclass
 	e match {
+			// If it's a token, display that token or "unexpected end of stream"
 		case Left(o) => if (o.isDefined) "Unexpected token " + "\"" + s"${o.get.text}" + "\"" else "Unexpected end of stream"
+			// otherwise use the given string
 		case Right((s, _)) => s
 	}
 ) {
+	/**
+	  * Recursively prints this error message followed by any sub-errors.
+	  * The line number is also printed if applicable.
+	  */
 	def printErr(): Unit = {
 		e match {
 			case Left(o) => if (o.isDefined) {
@@ -49,10 +66,52 @@ class ParseException(e: Either[Option[Token], (String, ParseException)], var va:
 	}
 }
 
+/**
+  * Parameters for extractIf()
+  * These describe CFG rules.
+  */
 sealed trait TokStreamMatch
+
+/**
+  * A parameter of this type must be matched exactly.
+  * @param v   A Seq() of either Token => Boolean or TokStream => Try[ASTNode]
+  *            Left(Token => Boolean):           Matches a type of token.
+  *            Right(TokStream => Try[ASTNode]): Calls another rule.
+  *
+  *            Example:
+  *                Seq(
+  *                    Left(_.tok == TokType.OBRACKET),
+  *                    Right(readExpression),
+  *                    Left(_.tok == TokType.CBRACKET),
+  *                )
+  *                Is equivalent to the following CFG rule:
+  *                    [ expression ]
+  * @param err An optional function to handle errors.
+  *            These are used to chain ParseExceptions together.
+  *            This function takes a ParseException and returns another ParseException
+  */
 final case class Match(v: Seq[Either[Token => Boolean, TokStream => Try[ASTNode]]], err: ParseException => ParseException = e => e) extends TokStreamMatch {
 	def unapply: Option[(Seq[Either[Token => Boolean, TokStream => Try[ASTNode]]], ParseException => ParseException)] = Some((v, err))
 }
+
+/**
+  * A parameter of this type can be matched optionally.
+  * @param v   A Seq() of either Token => Boolean or TokStream => Try[ASTNode]
+  *            Left(Token => Boolean):           Matches a type of token.
+  *            Right(TokStream => Try[ASTNode]): Calls another rule.
+  *
+  *            Example:
+  *                Seq(
+  *                    Left(_.tok == TokType.OBRACKET),
+  *                    Right(readExpression),
+  *                    Left(_.tok == TokType.CBRACKET),
+  *                )
+  *                Is equivalent to the following CFG rule:
+  *                    [ expression ]
+  * @param err An optional function to handle errors.
+  *            These are used to chain ParseExceptions together.
+  *            This function takes a ParseException and returns another ParseException
+  */
 final case class Optional(v: Seq[Either[Token => Boolean, TokStream => Try[ASTNode]]], err: ParseException => ParseException = e => e) extends TokStreamMatch {
 	def unapply: Option[(Seq[Either[Token => Boolean, TokStream => Try[ASTNode]]], ParseException => ParseException)] = Some((v, err))
 }
@@ -65,7 +124,7 @@ final case class Vararg(v: Seq[Either[Token => Boolean, TokStream => Try[ASTNode
   */
 trait TokStream {
 	/**
-	  * Gets the next element in the stream without advancing it.
+	  * Returns the next element in the stream without extracting it.
 	  * Prefer peekOption() to this method.
 	  * @return The next Token in the stream.
 	  * @throws ParseException The stream is empty.
@@ -73,7 +132,7 @@ trait TokStream {
 	def peek: Token
 
 	/**
-	  * Gets the next element in the stream if it exists without advancing it.
+	  * Gets the next element in the stream if it exists without extracting it.
 	  * @return Some(Token) if there's an element in the stream, None if not.
 	  */
 	def peekOption: Option[Token]
@@ -89,14 +148,10 @@ trait TokStream {
 
 	/**
 	  * Extracts a sequence of Tokens/ASTNodes if the given conditions are true.
-	  * The stream is not advanced if it is false.
+	  * The stream is not advanced if any of them are false.
 	  *
 	  * @param conds The conditions to apply.
-	  *              Match    - These must be matched.
-	  *              Optional - These can optionally be matched. These will always succeed, so the last error can be gotten through an optional second parameter.
-	  *              Vararg   - 0 or more of these are matched.  These will always succeed, so the last error can be gotten through an optional second parameter.
-	  *              Examples:
-	  *              These can either take a token and return a boolean, or take this stream and return an ASTNode
+	  *              @see TokStreamMatch
 	  * @return Each token (Left) matched will go into the Seq[Token]. Each ASTNode (Right) matched will go into the Seq[ASTNode].
 	  *         On failure, it returns a Failure(e) indicating the failing token.
 	  */
@@ -115,8 +170,14 @@ trait TokStream {
 	def empty: Boolean
 }
 
+/**
+  * Implementation of TokStream that wraps a sequence.
+  * @param tok The sequence to wrap.
+  */
 class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
+	// arrays are great because O(1) access
 	private val str = tok.to[Array]
+	// the next token to extract
 	private var index = 0
 
 	override def peek: Token = if (this.empty) throw new ParseException(Left(None)) else str(index)
@@ -129,10 +190,20 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 		str(index - 1)
 	}
 
+	// i know this function is ugly
 	private def __extractIf(conds: Seq[TokStreamMatch]): Try[(Seq[Token], Seq[ASTNode])] = {
+		// the tokens/nodes extracted
 		val ret = new ArrayBuffer[Either[Token, ASTNode]]
+		// the last vararg error, this is needed because vararg will always succeed (matches 0 or more)
+		// beware the error message produced by this is disputable
 		var varargExpBuf: Option[ParseException] = None
 
+		/**
+		  * Attempt to read an expression from the stream.
+		  * @param expr Left(Token => Boolean) (single token) or Right(TokStream => Try[ASTNode]) (other rule)
+		  * @param err
+		  * @return
+		  */
 		def readExpr(expr: Either[Token => Boolean, TokStream => Try[ASTNode]], err: ParseException => ParseException): Try[Either[Token, ASTNode]] = {
 			if (this.empty) return Failure(err(new ParseException(Left(None))))
 			expr match {
@@ -154,9 +225,9 @@ class SeqTokStream(private val tok: Seq[Token]) extends TokStream {
 				}
 				case Optional(v, err) =>
 					var ctr = 0
-					var ind = this.index
+					val ind = this.index
 					breakable { for (q <- v) readExpr(q, err) match {
-						case Success(w) => ret += w; ctr += 1; ind = this.index
+						case Success(w) => ret += w; ctr += 1;
 						case Failure(_) => ret.remove(ret.length - ctr, ctr); this.index = ind; break
 					}}
 				case Vararg(v, err) =>
@@ -252,8 +323,7 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.CBRACE)), e => new ParseException(Right(("Expected \"}\"", e)))),
 		) match {
 			case Success((tok, seq)) => Success(CompoundStatementNode(tok.head.line, seq.filter(_.isInstanceOf[VarDeclNode]).asInstanceOf[Seq[VarDeclNode]], seq.filter(_.isInstanceOf[Statement]).asInstanceOf[Seq[Statement]]))
-			case Failure(e) =>
-				Failure(e)
+			case Failure(e) => Failure(e)
 		}
 	}
 
@@ -411,7 +481,8 @@ object Parser {
 		stream.extractIf(
 			Vararg(Seq(Right(readDeclaration)), e => if (!stream.empty) return Failure(new ParseException(Right(("Expected declaration", e)))) else e)
 		) match {
-			case Success((_, seq)) => Success(ProgramNode(seq.head.line, seq.asInstanceOf[Seq[Declaration]]))
+			case Success((_, seq)) if seq.nonEmpty => Success(ProgramNode(seq.head.line, seq.asInstanceOf[Seq[Declaration]]))
+			case Success(_) => Failure(new ParseException(Right(("C- programs must have at least one declaration", new ParseException(Left(None))))))
 			case Failure(e) => Failure(e)
 		}
 	}

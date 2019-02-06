@@ -185,12 +185,13 @@ class LexerParserIntegrationTest extends FunSuite {
 
 	test("MainCase.Success.Basic") {
 		val lines = Seq(
-			"int main(void) {",
+			"int main(int x) {",
 			"   return 0;",
 			"}",
 		)
 		val tokens = Lexer(lines)
 		val tree = Parser(tokens)
+		prettyPrint(tree)
 		assert(tree.isSuccess)
 	}
 
@@ -345,6 +346,7 @@ class LexerParserIntegrationTest extends FunSuite {
 			"   int i = 0;",
 			"   float ret = -1.0e+19 * 1;",
 			"   while (i + 4 < (yfactor + 1) / 2) {",
+			"       int q = 7;",
 			"       ret = ret * x;",
 			"       if (ret < 0)",
 			"           while (ret < 0) ret = ret + x;",
@@ -598,6 +600,30 @@ class LexerParserIntegrationTest extends FunSuite {
 		assert(tree.isFailure)
 	}
 
+	test("MainCase.Failure.CommaMismatch3") {
+		val lines = Seq(
+			"int q(int x, int y) {}",
+			"int main(void) {",
+			"   return q(x, y,);",
+			"}",
+		)
+		val tokens = Lexer(lines)
+		val tree = Parser(tokens)
+		assert(tree.isFailure)
+	}
+
+	test("MainCase.Failure.CommaMismatch4") {
+		val lines = Seq(
+			"int q(int x, int y) {}",
+			"int main(void) {",
+			"   return q(x y, z);",
+			"}",
+		)
+		val tokens = Lexer(lines)
+		val tree = Parser(tokens)
+		assert(tree.isFailure)
+	}
+
 	test("MainCase.Failure.ParamFail1") {
 		val lines = Seq(
 			"int q(x) {}",
@@ -621,6 +647,20 @@ class LexerParserIntegrationTest extends FunSuite {
 	test("MainCase.Failure.Empty") {
 		val lines = Seq(
 			"",
+		)
+		val tokens = Lexer(lines)
+		val tree = Parser(tokens)
+		assert(tree.isFailure)
+	}
+
+	test("MainCase.Failure.VarDeclBelowStmt") {
+		val lines = Seq(
+			"int main(void) {",
+			"   int x = 4;",
+			"   x = 5;",
+			"   int y = 6;",
+			"   return x;",
+			"}",
 		)
 		val tokens = Lexer(lines)
 		val tree = Parser(tokens)

@@ -187,7 +187,7 @@ object SemAnalyzer {
 			}
 			case None => st.getRt match {
 				case Some(s) if s.typ == "void" => Success(())
-				case Some(_) => Failure(new SemAnalyzerException(s"Expected return type void but found expression", rs.line))
+				case Some(s) => Failure(new SemAnalyzerException(s"Expected return type '${s.typ}' but found void return statement.", rs.line))
 				case None => Failure(new SemAnalyzerException("Return statement outside of function", rs.line))
 			}
 		}

@@ -323,11 +323,13 @@ object Parser {
 		stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER), Left(_.tok == TokType.OPAREN))),
 			Vararg(Seq(Right(readParam), Left(_.tok == TokType.COMMA))),
-			Match(Seq(Right(readParam), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement))),
+			Match(Seq(Right(readParam), Left(_.tok == TokType.CPAREN))),
+			Match(Seq(Right(readCompoundStatement)), e => return Failure(new ParseException(Right(("Expected compound-stmt", e))))),
 		) orElse stream.extractIf(
 			Match(Seq(Left(_.tok == TokType.TYPE), Left(_.tok == TokType.IDENTIFIER)), e => new ParseException(Right(("Expected TYPE ID", e)))),
 			Match(Seq(Left(_.tok == TokType.OPAREN)), e => new ParseException(Right(("Expected '[', '=', or '('", e)))),
-			Match(Seq(Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN), Right(readCompoundStatement)), e => new ParseException(Right(("Expected 'void|param-list ) compound-stmt'", e)))),
+			Match(Seq(Left(t => t.tok == TokType.TYPE && t.text == "void"), Left(_.tok == TokType.CPAREN)), e => new ParseException(Right(("Expected void or param-list", e)))),
+			Match(Seq(Right(readCompoundStatement)), e => new ParseException(Right(("Expected compound-stmt", e)))),
 		) match {
 			case Success((tseq, aseq)) => Success(FunDeclNode(tseq.head.line, tseq.head.text, tseq(1).text, aseq.slice(0, aseq.length - 1).asInstanceOf[Seq[ParamNode]], aseq.last.asInstanceOf[CompoundStatementNode]))
 			case Failure(e) =>
@@ -360,7 +362,7 @@ object Parser {
 	}
 
 	// expression-stmt|compound-stmt|selection-stmt|iteration-stmt|return-stmt
-	def readStatement(stream: TokStream): Try[Statement] = readExpressionStatement(stream) orElse readCompoundStatement(stream) orElse readSelectionStatement(stream) orElse readIterationStatement(stream) orElse readReturnStatement(stream)
+	def readStatement(stream: TokStream): Try[Statement] = readExpressionStatement(stream) orElse readSelectionStatement(stream) orElse readIterationStatement(stream) orElse readReturnStatement(stream) orElse readCompoundStatement(stream)
 
 	def readExpressionStatement(stream: TokStream): Try[ExpressionStatementNode] = {
 		// expression ;|;
@@ -404,7 +406,7 @@ object Parser {
 			Match(Seq(Left(_.tok == TokType.SEMICOLON)), e => new ParseException(Right(("Expected \";\"", e)))),
 		) match {
 			case Success((_, seq)) if seq.length == 1 => Success(ReturnStatementNode(seq.head.line, Some(seq.head.asInstanceOf[Expression])))
-			case Success((_, seq)) => Success(ReturnStatementNode(seq.head.line))
+			case Success((tok, _)) => Success(ReturnStatementNode(tok.head.line))
 			case Failure(e) => Failure(e)
 		}
 	}

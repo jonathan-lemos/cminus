@@ -1,6 +1,6 @@
 import org.scalatest.FunSuite
 
-import scala.util.{Failure}
+import scala.util.Failure
 
 class ParserTest extends FunSuite {
 	test("Parser.SyntaxError") {

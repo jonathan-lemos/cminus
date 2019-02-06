@@ -10,10 +10,10 @@ int MEGAFUNCTION ( void )
 
     return 4; }
 
-int MEGAFUNCTIONTWO(int x,int y){if (x < 0) return x + y; else return x - y;}
+int MEGAFUNCTIONTWO(int x,int y){if (y < 0) return x + y; else return x - y;}
 float a(float b) { // MEGA_SYNTAX_ERROR 2
     int c = 4.0;
-    if (b < 0) return 0.0;
+    if (b < 0) return;
     while (c * (4 + b + MEGACONSTANT * 5) <= 3e19 / (7 + a(-3e-4 + (3 / 7 + (MEGAFUNCTION() + MEGAFUNCTIONTWO(3, 4e4))))+2)) {
         int d = c - MEGAFUNCTION() + MEGACONSTANT;
         while(0)return 4;

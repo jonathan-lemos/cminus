@@ -118,9 +118,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 
 	test("SemAnalyzer.VarAssgnFailure1") {
 		val lines = Seq(
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = main;",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -131,10 +130,9 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 
 	test("SemAnalyzer.VarAssgnFailure2") {
 		val lines = Seq(
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = 4;",
 			"   x = main;",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -146,9 +144,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 	test("SemAnalyzer.VarAssgnFailure3") {
 		val lines = Seq(
 			"int q(void) {}",
-			"int main(void) {",
+			"void main(void) {",
 			"   main = q;",
-			"   return 0;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -160,9 +157,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 	test("SemAnalyzer.AlreadyDeclared1") {
 		val lines = Seq(
 			"int x;",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = 4;",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -189,7 +185,7 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = 4;",
 			"   return x;",
 			"}",
@@ -204,10 +200,9 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 		val lines = Seq(
 			"int q(void) {",
 			"   int x = 4;",
-			"   return x;",
-			"}",
-			"int main(void) {",
 			"   return q;",
+			"}",
+			"void main(void) {",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -221,8 +216,7 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"int q(void) {",
 			"   int x = 4;",
 			"}",
-			"int main(void) {",
-			"   return 4;",
+			"void main(void) {",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -249,9 +243,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q;",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -266,9 +259,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q(1);",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -283,9 +275,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q(1, 2, 3);",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -300,9 +291,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q(1);",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -317,9 +307,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q();",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -334,9 +323,8 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   int x = 4;",
 			"   return x;",
 			"}",
-			"int main(void) {",
+			"void main(void) {",
 			"   int x = q(1, 2);",
-			"   return x;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
@@ -348,9 +336,25 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 	test("SemAnalyzer.VoidInExpr") {
 		val lines = Seq(
 			"void x(void) {}",
-			"int main(void) {",
-			"   return 5 + x();",
+			"void main(void) {",
+			"   int q = 5 + x();",
 			"}"
+		)
+		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
+		val analysis = SemAnalyzer(tree)
+		assert(analysis.isFailure)
+		prettyPrint(analysis)
+	}
+
+	test("SemAnalyzer.VoidReturn") {
+		val lines = Seq(
+			"int q(int x) {",
+			"   if (x) return;",
+			"   return 4;",
+			"}",
+			"void main(void) {",
+			"   return q(1);",
+			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))
 		val analysis = SemAnalyzer(tree)

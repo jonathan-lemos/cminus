@@ -1,5 +1,5 @@
 import scala.io.Source
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Main extends App {
 	override def main(args: Array[String]): Unit = {
@@ -14,7 +14,7 @@ object Main extends App {
 		}
 
 		// Lexically analyze the lines into tokens
-		val tokens = Lexer(lines, debugOutput = true)
+		val tokens = Lexer(lines)
 		if (tokens.foldLeft(false)((a, t) => if (t.tok == TokType.ERROR) {
 			Color.printRed(s"Error(Line ${t.line}): ")
 			println("Invalid token \"" + s"${t.text}" + "\"")
@@ -23,5 +23,10 @@ object Main extends App {
 
 		// build an AST out of our token stream
 		val tree = Parser(tokens)
+		tree match {
+			case Success(pn) => println(pn); Color.printGreen("Accept\n")
+			case Failure(e: ParseException) => e.printErr(); Color.printRed("Reject\n")
+			case Failure(e) => throw e
+		}
 	}
 }

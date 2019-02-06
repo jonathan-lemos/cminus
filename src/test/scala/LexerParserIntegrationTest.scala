@@ -422,6 +422,7 @@ class LexerParserIntegrationTest extends FunSuite {
 		val tree = Parser(tokens)
 		prettyPrint(tree)
 		assert(tree.isSuccess)
+		println(tree.get)
 	}
 
 	test("MainCase.Failure.StatementOutsideFunction1") {

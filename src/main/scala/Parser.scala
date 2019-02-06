@@ -5,29 +5,61 @@ import scala.util.control.Breaks._
 // the below classes are the nodes that can be in our tree
 // thank christ scala lets you define a class on one line
 trait ASTNode { val line: Int }
-case class   ProgramNode(line: Int, declarations: Seq[Declaration])                                                                       extends ASTNode
+case class   ProgramNode(line: Int, declarations: Seq[Declaration])                                                                       extends ASTNode {
+	override def toString: String = if (declarations.nonEmpty) declarations.foldLeft("")(_ + "\n" + _.toString).substring(1) else "Empty program (invalid)"
+}
 sealed trait Declaration                                                                                                                  extends ASTNode
-case class   VarDeclNode(line: Int, typename: String, identifier: String, arrayLen: Option[Int] = None, right: Option[Expression] = None) extends Declaration
-case class   FunDeclNode(line: Int, returnType: String, identifier: String, params: Seq[ParamNode], body: CompoundStatementNode)          extends Declaration
+case class   VarDeclNode(line: Int, typename: String, identifier: String, arrayLen: Option[Int] = None, right: Option[Expression] = None) extends Declaration {
+	override def toString: String = s"$typename $identifier${if (arrayLen.isDefined) s"[${arrayLen.get}]" else ""}${if (right.isDefined) s" = ${right.get}" else ""};"
+}
+case class   FunDeclNode(line: Int, returnType: String, identifier: String, params: Seq[ParamNode], body: CompoundStatementNode)          extends Declaration {
+	override def toString: String = s"$returnType $identifier (${if (params.nonEmpty) params.foldLeft("")(_ + ", " + _.toString).substring(1) else "void"}) $body"
+}
 case class   ParamNode(line: Int, typename: String, identifier: String, array: Boolean = false)                                           extends ASTNode {
-	override def toString: String = s"$typename${if (array) "[]" else ""}"
+	override def toString: String = s"$typename $identifier${if (array) "[]" else ""}"
 }
 sealed trait Statement                                                                                                                    extends ASTNode
-case class   CompoundStatementNode(line: Int, vardecls: Seq[VarDeclNode], statements: Seq[Statement])                                     extends Statement
-case class   SelectionStatementNode(line: Int, condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None)    extends Statement
-case class   IterationStatementNode(line: Int, condition: Expression, statement: Statement)                                               extends Statement
-case class   ReturnStatementNode(line: Int, expression: Option[Expression] = None)                                                        extends Statement
-case class   ExpressionStatementNode(line: Int, expression: Option[Expression] = None)                                                    extends Statement
+case class   CompoundStatementNode(line: Int, vardecls: Seq[VarDeclNode], statements: Seq[Statement])                                     extends Statement {
+	override def toString: String = s"{${vardecls.foldLeft("")(_ + "\n" + _.toString)}${statements.foldLeft("")(_ + "\n" + _.toString)}\n}"
+}
+case class   SelectionStatementNode(line: Int, condition: Expression, ifStatement: Statement, elseStatement: Option[Statement] = None)    extends Statement {
+	override def toString: String = s"if ($condition) $ifStatement${if (elseStatement.isDefined) s" else ${elseStatement.get}" else ""}"
+}
+case class   IterationStatementNode(line: Int, condition: Expression, statement: Statement)                                               extends Statement {
+	override def toString: String = s"while ($condition) $statement"
+}
+case class   ReturnStatementNode(line: Int, expression: Option[Expression] = None)                                                        extends Statement {
+	override def toString: String = s"return${if (expression.isDefined) s" ${expression.get}" else ""};"
+}
+case class   ExpressionStatementNode(line: Int, expression: Option[Expression] = None)                                                    extends Statement {
+	override def toString: String = s"${if (expression.isDefined) expression.get else ""};"
+}
 sealed trait Expression                                                                                                                   extends ASTNode
 sealed trait Factor                                                                                                                       extends Expression
-case class   AssignmentExpressionNode(line: Int, identifier: String, right: Expression, index: Option[Expression] = None)                 extends Expression
-case class   SimpleExpressionNode(line: Int, left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)        extends Expression
-case class   AdditiveExpressionNode(line: Int, left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression
-case class   TermNode(line: Int, left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression
-case class   CallNode(line: Int, identifier: String, args: Seq[Expression])                                                               extends Factor
-case class   VarNode(line: Int, identifier: String, arrayInd: Option[Expression] = None)                                                  extends Factor
-case class   NumNode(line: Int, value: Either[Int, Double])                                                                               extends Factor
-case class   ParenExpressionNode(line: Int, expr: Expression)                                                                             extends Factor
+case class   AssignmentExpressionNode(line: Int, identifier: String, right: Expression, index: Option[Expression] = None)                 extends Expression {
+	override def toString: String = s"$identifier${if (index.isDefined) s"[${index.get}]" else "" } = $right"
+}
+case class   SimpleExpressionNode(line: Int, left: AdditiveExpressionNode, right: Option[(String, AdditiveExpressionNode)] = None)        extends Expression {
+	override def toString: String = s"$left${if (right.isDefined) s" ${right.get._1} ${right.get._2}" else ""}"
+}
+case class   AdditiveExpressionNode(line: Int, left: TermNode, right: Option[(String, AdditiveExpressionNode)] = None)                    extends Expression {
+	override def toString: String = s"$left${if (right.isDefined) s" ${right.get._1} ${right.get._2}" else ""}"
+}
+case class   TermNode(line: Int, left: Factor, right: Option[(String, TermNode)] = None)                                                  extends Expression {
+	override def toString: String = s"$left${if (right.isDefined) s" ${right.get._1} ${right.get._2}" else ""}"
+}
+case class   CallNode(line: Int, identifier: String, args: Seq[Expression])                                                               extends Factor {
+	override def toString: String = s"$identifier(${if (args.nonEmpty) args.foldLeft("")(_ + "," + _.toString).substring(1) else ""})"
+}
+case class   VarNode(line: Int, identifier: String, arrayInd: Option[Expression] = None)                                                  extends Factor {
+	override def toString: String = s"$identifier${if (arrayInd.isDefined) s"[${arrayInd.get}]" else ""}"
+}
+case class   NumNode(line: Int, value: Either[Int, Double])                                                                               extends Factor {
+	override def toString: String = value match {case Left(v) => v.toString; case Right(v) => v.toString}
+}
+case class   ParenExpressionNode(line: Int, expr: Expression)                                                                             extends Factor {
+	override def toString: String = s"($expr)"
+}
 
 /**
   * An error the parser can output.

@@ -337,6 +337,15 @@ class LexerParserIntegrationTest extends FunSuite {
 		assert(tree.isSuccess)
 	}
 
+	test("MainCase.Success.EmptyRet") {
+		val lines = Seq(
+			"int main(void) {return;}",
+		)
+		val tokens = Lexer(lines)
+		val tree = Parser(tokens)
+		assert(tree.isSuccess)
+	}
+
 	test("MainCase.Success.Brutal1") {
 		val lines = Seq(
 			"/* /* does some bullshit */",

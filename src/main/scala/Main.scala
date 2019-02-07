@@ -33,7 +33,7 @@ object Main extends App {
 		}
 		*/
 		val tree = Parser(tokens) match {
-			case Success(pn) => pn
+			case Success(pn) => println(pn); pn
 			case Failure(e: ParseException) => e.printErr(); return
 			case Failure(e) => throw e
 		}

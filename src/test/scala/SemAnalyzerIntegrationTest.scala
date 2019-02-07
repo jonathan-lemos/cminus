@@ -353,7 +353,7 @@ class SemAnalyzerIntegrationTest extends FunSuite {
 			"   return 4;",
 			"}",
 			"void main(void) {",
-			"   return q(1);",
+			"   return;",
 			"}",
 		)
 		val tree = Parser(Lexer(lines)).getOrElse(throw new IllegalArgumentException("parser is fukt"))

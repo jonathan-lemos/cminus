@@ -22,41 +22,50 @@ class SemAnalyzerException(s: String, line: Int) extends IllegalArgumentExceptio
 }
 
 private final class SymTab {
-	private val list = new ListBuffer[mutable.HashMap[String, SymTabType]]
-	private var retType: Option[RegType] = None
-	private var rtHit: Boolean = false
-	list += new mutable.HashMap[String, SymTabType]
+	private val varList = new ListBuffer[mutable.HashMap[String, RegType]]
+	private val funcList = new mutable.HashMap[String, FuncType]
+	private var curRetType: Option[RegType] = None
+	private var retTypeHit: Boolean = false
 
-	def has(id: String, t: SymTabType): Boolean = {
-		for (c <- list) if (c.contains(id) && c(id) == t) return true
-		false
+	varList.+=:(new mutable.HashMap[String, RegType])
+
+	def add(id: String, t: SymTabType): Boolean = t match {
+		case r: RegType =>
+			if (varList.last.contains(id)) false
+			else { varList.last += ((id, r)); true }
+		case f: FuncType =>
+			if (funcList.contains(id)) false
+			else { funcList += ((id, f)); pushScope(); curRetType = Some(RegType(f.ret)); true }
 	}
 
-	def hasId(id: String): Boolean = {
-		for (c <- list) if (c.contains(id)) return true
-		false
+	def pushScope(): Unit = varList.+=:(new mutable.HashMap[String, RegType])
+	def popScope(): Unit = varList.remove(0)
+
+	def getReg(id: String): Option[RegType] = {
+		for (t <- varList) {
+			if (t.contains(id)) {
+				return Some(t(id))
+			}
+		}
+		None()
 	}
 
-	def getIdType(id: String): Option[SymTabType] = {
-		for (c <- list) if (c.contains(id)) return Some(c(id))
-		None
-	}
+	def getFunc(id: String): Option[FuncType] = if (funcList.contains(id)) Some(funcList(id)) else None()
 
-	def add(id: String, t: SymTabType): Unit = {list.last += ((id, t)); () }
-	def pushScope(): Unit = list += new mutable.HashMap[String, SymTabType]
-	def popScope(): Unit = { if (list.nonEmpty) list.remove(list.length - 1); () }
-	def setRt(r: Option[RegType]): Unit = { this.retType = r; rtHit = if (r.isDefined) r.get.typ == "void" else false }
-	def getRt: Option[RegType] = this.retType
-	def getHitRt: Boolean = this.rtHit
-	def setHitRt(b: Boolean): Unit = this.rtHit = b
+	def checkReturnType(r: RegType): Boolean = curRetType match {
+		case Some(rt) =>
+			if (r == rt) { this.retTypeHit = true; true}
+			else false
+		case None => false
+	}
 }
 
 object SemAnalyzer {
 	def compareTypesExpr(lhs: RegType, rhs: RegType, line: Int): Try[RegType] = {
 		if (lhs.typ == "void" || rhs.typ == "void") return Failure(new SemAnalyzerException("Type void is not allowed in an expression", line))
 		if (lhs.arrayLen.isDefined || rhs.arrayLen.isDefined) return Failure(new SemAnalyzerException("Array type is not allowed in an expression", line))
-		if (lhs.typ == "float" || rhs.typ == "float") return Success(RegType("float"))
-		Success(RegType("int"))
+		if (lhs.typ != rhs.typ) return Failure(new SemAnalyzerException(s"Type '${lhs.typ}' does not match type '${rhs.typ}'", line))
+		Success(RegType(lhs.typ))
 	}
 
 	def compareTypesParam(exp: ParamNode, paramLine: Int, act: RegType): Try[Unit] = {

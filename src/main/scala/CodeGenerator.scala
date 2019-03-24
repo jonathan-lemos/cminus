@@ -1,3 +1,4 @@
+/*
 import java.nio.ByteBuffer
 
 object AccessFlag {
@@ -124,3 +125,4 @@ final case class ClassData() {
 object CodeGenerator {
 
 }
+*/

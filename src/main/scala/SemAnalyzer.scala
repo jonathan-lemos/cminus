@@ -35,10 +35,14 @@ private final class SymTab {
 			else { varList.head += ((id, r)); true }
 		case f: FuncType =>
 			if (funcList.contains(id)) false
-			else { funcList += ((id, f)); pushScope(); curRetType = Some(RegType(f.ret)); retTypeHit = f.ret == "void"; true }
+			else { funcList += ((id, f)); curRetType = Some(RegType(f.ret)); retTypeHit = f.ret == "void"; true }
 	}
 
-	def pushScope(): Unit = varList.+=:(new mutable.HashMap[String, RegType])
+	def pushScope(x: Seq[(String, RegType)] = Seq()): Unit = {
+		varList.+=:(new mutable.HashMap[String, RegType])
+		x.foreach(y => this.add(y._1, y._2))
+	}
+
 	def popScope(): Unit = { varList.remove(0); () }
 
 	def getReg(id: String): Option[RegType] = {
@@ -220,8 +224,8 @@ object SemAnalyzer {
 		case e: ExpressionStatementNode => analyzeExpressionStatement(e, st)
 	}
 
-	def analyzeCompoundStatement(cs: CompoundStatementNode, st: SymTab): Try[Unit] = {
-		st.pushScope()
+	def analyzeCompoundStatement(cs: CompoundStatementNode, st: SymTab, params: Seq[(String, RegType)] = Seq()): Try[Unit] = {
+		st.pushScope(params)
 		for (v <- cs.vardecls) analyzeVarDecl(v, st) match {case Failure(e) => return Failure(e); case _ =>}
 		for (s <- cs.statements) analyzeStatement(s, st) match {case Failure(e) => return Failure(e); case _ =>}
 		st.popScope()
@@ -250,7 +254,6 @@ object SemAnalyzer {
 		)
 		analyzeCompoundStatement(fd.body, st) match {case Failure(e) => return Failure(e); case _ =>}
 		if (!st.returnHit) return Failure(new SemAnalyzerException(s"Missing return statement", fd.line))
-		st.popScope()
 		Success(())
 	}
 

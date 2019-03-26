@@ -263,7 +263,7 @@ object SemAnalyzer {
 		if (pn.declarations.isEmpty) return Failure(new SemAnalyzerException("A program must have at least one declaration", pn.line))
 		pn.declarations.last match {
 			case fd: FunDeclNode =>
-				if (fd.identifier != "main") return Failure(new SemAnalyzerException("The last declaration must be a function named 'main'", fd.line));
+				if (fd != FunDeclNode(fd.line, "void", "main", Seq(), fd.body)) return Failure(new SemAnalyzerException("The last declaration must be void main(void)", fd.line));
 			case _ => return Failure(new SemAnalyzerException("The last declaration must be a function named 'main'", pn.line));
 		}
 		for (p <- pn.declarations) {
@@ -277,6 +277,8 @@ object SemAnalyzer {
 
 	def apply(root: ProgramNode): Try[Unit] = {
 		val symtab = new SymTab
+		symtab.add("input", FuncType("int", Seq()))
+		symtab.add("output", FuncType("void", Seq(ParamNode(0, "int", "x"))))
 		analyzeProgramNode(root, symtab)
 	}
 }

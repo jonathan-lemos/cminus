@@ -1,4 +1,5 @@
 import org.scalatest.FunSuite
+import java.io._
 
 import scala.util.{Failure, Try}
 
@@ -182,6 +183,18 @@ class LexerParserIntegrationTest extends FunSuite {
 		prettyPrint(tree)
 	}
 	*/
+
+	val EXPORT_CASES = false
+	def writeFile(filename: String, contents: Seq[String]): Unit = {
+		if (EXPORT_CASES) {
+			val pw = new PrintWriter(new File(filename))
+			contents.foreach(l => pw.println(l))
+			pw.close()
+		}
+	}
+	def mkLines(s: String): Seq[String] = s.trim.split("\n")
+
+
 
 	test("MainCase.Success.Basic") {
 		val lines = Seq(

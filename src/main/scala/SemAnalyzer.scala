@@ -156,8 +156,13 @@ object SemAnalyzer {
 	def analyzeAssignmentExpression(ae: AssignmentExpressionNode, st: SymTab): Try[RegType] = {
 		val lhsType: RegType = st.getReg(ae.identifier) match {
 			case Some(r: RegType) => ae.index match {
-				case Some(_) if r.arrayLen.isDefined => RegType(r.typ)
-				case Some(_) => return Failure(new SemAnalyzerException(s"Cannot index non-array '${ae.identifier}'", ae.line))
+				case Some(_) if r.arrayLen.isEmpty => return Failure(new SemAnalyzerException(s"Cannot index non-array '${ae.identifier}'", ae.line))
+				case Some(e) => analyzeExpression(e, st) match {
+					case Success(t) if t == RegType("int") =>
+					case Success(_) => return Failure(new SemAnalyzerException(s"Array index must be of type int", e.line))
+					case Failure(e) => return Failure(e);
+				}
+				RegType(r.typ)
 				case None if r.arrayLen.isEmpty => RegType(r.typ)
 				case None => return Failure(new SemAnalyzerException(s"Cannot assign to array '${ae.identifier}'", ae.line))
 			}
@@ -224,8 +229,8 @@ object SemAnalyzer {
 		case e: ExpressionStatementNode => analyzeExpressionStatement(e, st)
 	}
 
-	def analyzeCompoundStatement(cs: CompoundStatementNode, st: SymTab, params: Seq[(String, RegType)] = Seq()): Try[Unit] = {
-		st.pushScope(params)
+	def analyzeCompoundStatement(cs: CompoundStatementNode, st: SymTab, params: Seq[ParamNode] = Seq()): Try[Unit] = {
+		st.pushScope(params.map(p => (p.identifier, RegType(p.typename, if (p.array) Some(0) else None))))
 		for (v <- cs.vardecls) analyzeVarDecl(v, st) match {case Failure(e) => return Failure(e); case _ =>}
 		for (s <- cs.statements) analyzeStatement(s, st) match {case Failure(e) => return Failure(e); case _ =>}
 		st.popScope()
@@ -249,10 +254,7 @@ object SemAnalyzer {
 
 	def analyzeFunDecl(fd: FunDeclNode, st: SymTab): Try[Unit] = {
 		if (!st.add(fd.identifier, FuncType(fd.returnType, fd.params))) return Failure(new SemAnalyzerException(s"Duplicate function name '${fd.identifier}'", fd.line))
-		fd.params.foreach(p =>
-			if (!st.add(p.identifier, RegType(p.typename, if (p.array) Some(0) else None))) return Failure(new SemAnalyzerException(s"Duplicate param name '${p.identifier}'", fd.line))
-		)
-		analyzeCompoundStatement(fd.body, st) match {case Failure(e) => return Failure(e); case _ =>}
+		analyzeCompoundStatement(fd.body, st, fd.params) match {case Failure(e) => return Failure(e); case _ =>}
 		if (!st.returnHit) return Failure(new SemAnalyzerException(s"Missing return statement", fd.line))
 		Success(())
 	}

@@ -22,7 +22,7 @@ int x(void) { return 4; return 8; }
 void y(void) { return; return; }
 void z(void) { }
 float aa(void) { if (1 == 0) { return 4.0E-13; } }
-void main(void) {}
+void main(void) { main(); }
         """)),
         ("ParamSuccess", mkLines("""
 int v(void) { return 3; }
@@ -36,8 +36,12 @@ int y(int x) { return x * 2; }
 void main(void) {
     float x;
     int y;
+	int z;
 	x; y; ;;;
+    x = x;
+	y = y;
     if (y > 0) x = 1.0; else y = 0;
+	z = y = (y = 4) * (z = 2) * 4;
     x = 2.0 + 3.0e4 * (5.0e-2 / (4.0 + x()));
     y = 2 + 3 / (4 + 5) / y(4);
 	return;
@@ -215,6 +219,31 @@ void main(void) { float x; x = 2; }
 		""")),
 		("Cannot assign float to int", mkLines("""
 void main(void) { int x; x = 4.0; }
+		""")),
+		("Cannot assign int assgn expr to float", mkLines("""
+void main(void) { float x; int y; x = (y = 4); }
+		""")),
+		("Cannot assign float assgn expr to int", mkLines("""
+void main(void) { float x; int y; y = (x = 4.0); }
+		""")),
+		("Cannot assign to function 1", mkLines("""
+int x(void) { return 0; }
+void main(void) { x = 4; }
+		""")),
+		("Cannot assign to function 2", mkLines("""
+int x(void) { return 0; }
+int y(void) { return 0; }
+void main(void) { x = y; }
+		""")),
+		("Cannot assign to function 3", mkLines("""
+int x(void) { return 0; }
+void main(void) { x = x; }
+		""")),
+		("Assgn chain must be same type 1", mkLines("""
+void main(void) { int x; int y; float z; x = z = y; }
+		""")),
+		("Assgn chain must be same type 2", mkLines("""
+void main(void) { int x; int y; float z; x = y = 4.0; }
 		""")),
 		("Cannot instantiate var of type void", mkLines("""
 void main(void) { void x; }

@@ -4,7 +4,7 @@ import java.io._
 import scala.util.{Failure, Success, Try}
 
 class SemAnalyzerIntegrationTest extends WordSpec {
-	val EXPORT_CASES = false
+	val EXPORT_CASES = true
 
 	def writeFile(filename: String, contents: Seq[String]): Unit = {
 		if (EXPORT_CASES) {
@@ -39,7 +39,7 @@ void main(void) {
 	int z;
 	x; y; ;;;
     x = x;
-	y = y;
+	y = (x >= 2.0) + 4 + (y != 2);
     if (y > 0) x = 1.0; else y = 0;
 	z = y = (y = 4) * (z = 2) * 4;
     x = 2.0 + 3.0e4 * (5.0e-2 / (4.0 + x()));
@@ -60,13 +60,18 @@ void main(void) {
 }
         """)),
         ("ScopeSuccess", mkLines("""
+float a;
 int x;
-int x(int q) { {int q = q; return x + q + x(x);} }
+int x(int q) { { int q; { q = q; { return x + q + x(x); } } } }
 void main(void) {
     int q;
     int x;
+	float b;
     if (x(x) == x(q)) {
-        int x = x(x);
+		float c;
+        int x;
+		c = a + b;
+        x = x(x);
         x + q;
     }
     else if (1.0 == 1.0) {
@@ -76,7 +81,7 @@ void main(void) {
 }
         """)),
         ("InputOutputSuccess", mkLines("""
-void main(void) { int x = input(); output(x); }
+void main(void) { int x; x = input(); output(x); }
         """)),
         ("CrazySuccess", mkLines("""
 //ACCEPT
@@ -169,6 +174,16 @@ void main(void) { }
 		""")),
 		("Cannot return int from void fn", mkLines("""
 void main(void) { return 4; }
+		""")),
+		("Cannot return int array from int fn", mkLines("""
+int x(void) { int y[1]; return y; }
+void main(void) { return 4; }
+		""")),
+		("Cannot use type int array in condition", mkLines("""
+void main(void) { int y[1]; if (y) main(); }
+		""")),
+		("Cannot use type float in condition", mkLines("""
+void main(void) { if (2.0) main(); }
 		""")),
 		("Cannot pass parameter to void param", mkLines("""
 int x(void) { return 0; }
@@ -299,6 +314,44 @@ void main(void) { x; }
 int x;
 void main(void) { x(); }
 		""")),
+		("Cannot use var from popped scope 1", mkLines("""
+void main(void) {
+	if (1) {
+        int x;
+    }
+	else {
+        x = 4;
+    }
+}
+		""")),
+		("Cannot use var from popped scope 2", mkLines("""
+void main(void) {
+	{
+        int x;
+    }
+	x = 4;
+}
+		""")),
+		("Cannot use var from popped scope 3", mkLines("""
+int r(void) {
+	int y;
+	y = 4;
+    return y;
+}
+void main(void) {
+	int z;
+	z = y + 4;
+}
+		""")),
+		("Cannot use var from popped scope 4", mkLines("""
+int r(int y) {
+    return y;
+}
+void main(void) {
+	int z;
+	z = y + 4;
+}
+		""")),
 		("Cannot compare int and float 1", mkLines("""
 void main(void) { if (1 == 1.0) main(); }
 		""")),
@@ -336,6 +389,12 @@ int main(void) { return 0; }
 		""")),
 		("Main must be void main void 2", mkLines("""
 void main(int argc) { }
+		""")),
+		("If expr cannot be void", mkLines("""
+void main(void) { if (main()) return 0; }
+		""")),
+		("If expr cannot be float", mkLines("""
+void main(void) { if (2.0) return 0; }
 		""")),
 	)
 

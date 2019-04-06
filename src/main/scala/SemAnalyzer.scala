@@ -146,7 +146,10 @@ object SemAnalyzer {
 		val lhsType: RegType = analyzeAdditiveExpression(se.left, st) match {case Success(l) => l; case Failure(e) => return Failure(e)}
 		se.right match {
 			case Some((_, ae)) => analyzeAdditiveExpression(ae, st) match {
-				case Success(rhsType) => compareTypesExpr(lhsType, rhsType, se.line)
+				case Success(rhsType) => compareTypesExpr(lhsType, rhsType, se.line) match {
+					case Success(_) => Success(RegType("int"))
+					case Failure(e) => Failure(e)
+				}
 				case Failure(e) => Failure(e)
 			}
 			case None => Success(lhsType)
@@ -207,13 +210,19 @@ object SemAnalyzer {
 	}
 
 	def analyzeIterationStatement(is: IterationStatementNode, st: SymTab): Try[Unit] = {
-		analyzeExpression(is.condition, st) match {case Failure(e) => return Failure(e); case _ =>}
+		analyzeExpression(is.condition, st) match {
+			case Success(t) => if (t != RegType("int")) return Failure(new SemAnalyzerException("Condition expression must be of type int", is.line))
+			case Failure(e) => return Failure(e)
+		}
 		analyzeStatement(is.statement, st) match {case Failure(e) => return Failure(e); case _ =>}
 		Success(())
 	}
 
 	def analyzeSelectionStatement(ss: SelectionStatementNode, st: SymTab): Try[Unit] = {
-		analyzeExpression(ss.condition, st) match {case Failure(e) => return Failure(e); case _ =>}
+		analyzeExpression(ss.condition, st) match {
+			case Success(t) => if (t != RegType("int")) return Failure(new SemAnalyzerException("Condition expression must be of type int", ss.line))
+			case Failure(e) => return Failure(e)
+		}
 		analyzeStatement(ss.ifStatement, st) match {case Failure(e) => return Failure(e); case _ =>}
 		ss.elseStatement match {
 			case Some(s) => analyzeStatement(s, st) match {case Failure(e) => Failure(e); case _ => Success(())}

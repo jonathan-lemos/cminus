@@ -4,7 +4,7 @@ import java.io._
 import scala.util.{Failure, Success, Try}
 
 class SemAnalyzerIntegrationTest extends WordSpec {
-	val EXPORT_CASES = true
+	val EXPORT_CASES = false
 
 	def writeFile(filename: String, contents: Seq[String]): Unit = {
 		if (EXPORT_CASES) {
@@ -222,9 +222,13 @@ void main(void) { x(1, 1.0, 2); }
 int x(int a, float b) { return 0; }
 void main(void) { x(1); }
 		""")),
-		("Cannot use type void in expression", mkLines("""
+		("Cannot use type void in expression 1", mkLines("""
 void x(void) {}
 void main(void) { 2 + x(); }
+		""")),
+		("Cannot use type void in expression 2", mkLines("""
+void x(void) {}
+void main(void) { x() + x(); }
 		""")),
 		("Cannot mix int and float in expression", mkLines("""
 void main(void) { 2 + 2.0; }
@@ -382,6 +386,9 @@ int x;
 		""")),
 		("Last decl must be main function 2", mkLines("""
 void main(void) { }
+void v(void) {}
+		""")),
+		("Last decl must be main function 3", mkLines("""
 void v(void) {}
 		""")),
 		("Main must be void main void 1", mkLines("""

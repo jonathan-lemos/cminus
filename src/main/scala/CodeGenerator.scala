@@ -75,10 +75,10 @@ object CodeGenerator {
 		}
 		ss.elseStatement match {
 			case Some(s) =>
+				c.index += 2
+				val elsestmt = Seq(Quadruple("block")) ++ genStatement(s, c) ++ Seq(Quadruple("end", "block"))
 				c.index += 1
-				val elsestmt = genStatement(s, c)
-				c.index += 1
-				condops ++ ifstmt ++ Seq(Quadruple("block")) ++ elsestmt ++ Seq(Quadruple("end", "block"))
+				condops ++ ifstmt ++ Seq(Quadruple("BR", "", "", (c.index + 1).toString)) ++ elsestmt
 			case None => condops ++ ifstmt
 		}
 	}

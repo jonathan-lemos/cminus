@@ -8,22 +8,96 @@ private case class Ctx(var index: Int = 0, var id: Int = 0) {
 }
 
 object CodeGenerator {
+
+	def genCall(cn: CallNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = {
+		val tmp = c.genTmp
+		c.index += 1
+		(Seq(Quadruple("call", )))
+	}
+
+	def genFactor(f: Factor, c: Ctx): (Seq[Quadruple], String, Option[String]) = f match {
+
+	}
+
+	def genTerm(t: TermNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = t.right match {
+		case Some(s) =>
+			val (mulop, rhs) = s
+			val (lhsQuad, lhsTmp, _) = genFactor(t.left, c)
+			val (rhsQuad, rhsTmp, _) = genTerm(rhs, c)
+			c.index += 1
+			val tmp = c.genTmp
+			val op = if  (mulop == "*") "MUL" else "DIV"
+			(lhsQuad ++ rhsQuad ++ Seq(Quadruple(op, lhsTmp, rhsTmp, tmp)), tmp, None)
+	}
+
+	def genAdditiveExpression(ae: AdditiveExpressionNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = ae.right match {
+		case Some(s) =>
+			val (addop, rhsExpr) = s
+			val (lhsQuad, lhsTmp, _) = genTerm(ae.left, c)
+			val (rhsQuad, rhsTmp, _) = genAdditiveExpression(rhsExpr, c)
+			c.index += 1
+			val tmp = c.genTmp
+			val op = if (addop == "+") "ADD" else "SUB"
+			(lhsQuad ++ rhsQuad ++ Seq(Quadruple(op, lhsTmp, rhsTmp, tmp)), tmp, None))
+
+		case None => genTerm(ae.left, c)
+	}
+
+	def genSimpleExpression(se: SimpleExpressionNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = se.right match {
+		case Some(s) =>
+			val (lhsQuad, lhsTmp, _) = genAdditiveExpression(se.left, c)
+			val (relop, rhsExpr) = s
+			val (rhsQuad, rhsTmp, _) = genAdditiveExpression(rhsExpr, c)
+			c.index += 1
+			val tmp = c.genTmp
+			(lhsQuad ++ rhsQuad ++ Seq(Quadruple("COMP", lhsTmp, rhsTmp, tmp)), tmp, Some(relop))
+
+		case None => genAdditiveExpression(se.left, c)
+	}
+
+	def genAssignmentExpression(ae: AssignmentExpressionNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = {
+		val (pre, tmp) = ae.index match {
+			case Some(e) => evalExpr(genExpression(e), c)
+			case None => (Seq(), "")
+		}
+		val (expr, tmpvar) = evalExpr(genExpression(ae.right), c)
+		val v = if (tmp == "") ae.identifier else tmp
+		val assgn = Seq(Quadruple("assgn", "", tmpvar, v))
+		(pre ++ expr ++ assgn, v, None)
+	}
+
 	def genExpression(e: Expression): (Seq[Quadruple], String, Option[String]) = {
 
+	}
+
+	def genExpressionStatement(es: ExpressionStatementNode, c: Ctx): Seq[Quadruple] = {
+		es.expression match {
+			case Some(e) =>
+				val (expr, _) = evalExpr(genExpression(e), c)
+				expr
+			case None => Seq()
+		}
 	}
 
 	def evalExpr(e: (Seq[Quadruple], String, Option[String]), c: Ctx): (Seq[Quadruple], String) = {
 		val (expr, tmpvar, relop) = e
 		relop match {
 			case Some(s) =>
+				val op = s match {
+					case ">"  => "BRLTE"
+					case ">=" => "BRLT"
+					case "<"  => "BRGTE"
+					case "<=" => "BRGT"
+					case "==" => "BRNE"
+					case "!=" => "BREQ"
+				}
+
 				val tmp = c.genTmp
-				val tmp2 = c.genTmp
-				val cmp = Seq(Quadruple("COMP", tmpvar, "1", tmp))
-				c.index += 1
-				val ifTrue = Seq(Quadruple("BRNE", tmp, "", (c.index + 2).toString), Quadruple("ASSIGN", "1", "", tmp2), Quadruple("BR", "", "", (c.index + 4).toString))
-				c.index += 3
-				val ifFalse = Seq(Quadruple("ASSIGN", "0", "", tmp2))
-				(cmp ++ ifTrue ++ ifFalse, tmp2)
+				val ifTrue = Seq(Quadruple(op, tmpvar, "", (c.index + 3).toString), Quadruple("ASSIGN", "1", "", tmp), Quadruple("BR", "", "", (c.index + 4).toString))
+				c.index += ifTrue.length
+				val ifFalse = Seq(Quadruple("ASSIGN", "0", "", tmp))
+				c.index += ifFalse.length
+				(ifTrue ++ ifFalse, tmp)
 			case None =>
 				(expr, tmpvar)
 		}
@@ -32,11 +106,9 @@ object CodeGenerator {
 	def genReturnStatement(rs: ReturnStatementNode, c: Ctx): Seq[Quadruple] = {
 		rs.expression match {
 			case Some(e) =>
-				val (expr, tmpvar, relop) = genExpression(e)
-				relop match {
-					case Some(s) =>
-
-				}
+				val (expr, tmpvar) = evalExpr(genExpression(e), c)
+				c.index += 1
+				expr ++ Seq(Quadruple("return", "", "", tmpvar))
 			case None => Seq()
 		}
 	}

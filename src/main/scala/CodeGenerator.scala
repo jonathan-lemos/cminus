@@ -12,6 +12,35 @@ object CodeGenerator {
 
 	}
 
+	def evalExpr(e: (Seq[Quadruple], String, Option[String]), c: Ctx): (Seq[Quadruple], String) = {
+		val (expr, tmpvar, relop) = e
+		relop match {
+			case Some(s) =>
+				val tmp = c.genTmp
+				val tmp2 = c.genTmp
+				val cmp = Seq(Quadruple("COMP", tmpvar, "1", tmp))
+				c.index += 1
+				val ifTrue = Seq(Quadruple("BRNE", tmp, "", (c.index + 2).toString), Quadruple("ASSIGN", "1", "", tmp2), Quadruple("BR", "", "", (c.index + 4).toString))
+				c.index += 3
+				val ifFalse = Seq(Quadruple("ASSIGN", "0", "", tmp2))
+				(cmp ++ ifTrue ++ ifFalse, tmp2)
+			case None =>
+				(expr, tmpvar)
+		}
+	}
+
+	def genReturnStatement(rs: ReturnStatementNode, c: Ctx): Seq[Quadruple] = {
+		rs.expression match {
+			case Some(e) =>
+				val (expr, tmpvar, relop) = genExpression(e)
+				relop match {
+					case Some(s) =>
+
+				}
+			case None => Seq()
+		}
+	}
+
 	def genIterationStatement(is: IterationStatementNode, c: Ctx): Seq[Quadruple] = {
 		val (condition, tmpvar, relop) = genExpression(is.condition)
 		val indexOld = c.index
@@ -87,6 +116,8 @@ object CodeGenerator {
 		s match {
 			case a: CompoundStatementNode => genCompoundStatement(a, c)
 			case a:	SelectionStatementNode => genSelectionStatement(a, c)
+			case a: IterationStatementNode => genIterationStatement(a, c)
+			case a: ReturnStatementNode => genReturnStatement(a, c)
 		}
 	}
 

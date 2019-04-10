@@ -34,7 +34,7 @@ object Main extends App {
 		}
 		*/
 		val tree = Parser(tokens) match {
-			case Success(pn) => println(pn); pn
+			case Success(pn) => pn
 			case Failure(e: ParseException) => e.printErr(); return
 			case Failure(e) => throw e
 		}
@@ -44,6 +44,10 @@ object Main extends App {
 			case Failure(e: SemAnalyzerException) => e.prettyPrint(); return
 			case Failure(e) => throw e
 		}
-		Color.printGreen("Accept\n")
+
+		val ir = CodeGenerator(tree)
+		ir.map(_.index).zip(1 to ir.length).foreach(s => if (s._1 != s._2) println(s"Mismatched index ${s._1}, ${s._2}"))
+		ir.foreach(println)
+		// Color.printGreen("Accept\n")
 	}
 }

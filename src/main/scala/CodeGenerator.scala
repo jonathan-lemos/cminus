@@ -1,7 +1,7 @@
 case class Quadruple(index: Int, op: String, par1: String = "", par2: String = "", par3: String = "") {
 	override def toString: String = f"$index%-5d$op%-15s$par1%-15s$par2%-15s$par3%-15s"
 }
-private case class Ctx(var index: Int = 1, var id: Int = 0) {
+private case class Ctx(symtab: SymTab, var index: Int = 1, var id: Int = 0) {
 	def genTmp: String = {
 		val ret = s"_t$id"
 		id += 1
@@ -10,7 +10,6 @@ private case class Ctx(var index: Int = 1, var id: Int = 0) {
 }
 
 object CodeGenerator {
-
 	def genParenExpression(pe: ParenExpressionNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = genExpression(pe.expr, c)
 
 	def genNum(nn: NumNode): (Seq[Quadruple], String, Option[String]) = nn.value match {
@@ -27,16 +26,23 @@ object CodeGenerator {
 	}
 
 	def genCall(cn: CallNode, c: Ctx): (Seq[Quadruple], String, Option[String]) = {
-		val tmp = c.genTmp
-		val params = cn.args.map(p => {
-			val (quad, name) = evalExpr(genExpression(p, c), c)
-			val ret = (quad, Quadruple(c.index, "arg", "", "", name))
+		val exprs = cn.args.map(p => evalExpr(genExpression(p, c), c))
+		val params = exprs.map(e => {
+			val ret = Quadruple(c.index, "arg", "", "", e._2)
 			c.index += 1
 			ret
 		})
-		val call = Seq(Quadruple(c.index, "call", cn.identifier, params.length.toString, tmp))
+
+		val (call, tmp) = if (c.symtab.getFunc(cn.identifier).getOrElse(throw new IllegalStateException(s"Function ${cn.identifier} not in symtab")).ret == "void") {
+			(Seq(Quadruple(c.index, "call", cn.identifier, params.length.toString)), "")
+		}
+		else {
+			val tmp = c.genTmp
+			(Seq(Quadruple(c.index, "call", cn.identifier, params.length.toString, tmp)), tmp)
+		}
+
 		c.index += 1
-		(params.flatMap(_._1) ++ params.map(_._2) ++ call, tmp, None)
+		(exprs.flatMap(_._1) ++ params ++ call, tmp, None)
 	}
 
 	def genFactor(f: Factor, c: Ctx): (Seq[Quadruple], String, Option[String]) = f match {
@@ -170,11 +176,11 @@ object CodeGenerator {
 				}
 
 				val tmp = c.genTmp
-				val ifTrue = Seq(Quadruple(c.index, op, tmpvar, "", (c.index + 3).toString), Quadruple(c.index + 1, "assign", "1", "", tmp), Quadruple(c.index + 2, "br", "", "", (c.index + 3).toString))
+				val ifTrue = Seq(Quadruple(c.index, op, tmpvar, "", (c.index + 3).toString), Quadruple(c.index + 1, "assign", "1", "", tmp), Quadruple(c.index + 2, "br", "", "", (c.index + 4).toString))
 				c.index += 3
 				val ifFalse = Seq(Quadruple(c.index, "assign", "0", "", tmp))
 				c.index += 1
-				(ifTrue ++ ifFalse, tmp)
+				(expr ++ ifTrue ++ ifFalse, tmp)
 			case None =>
 				(expr, tmpvar)
 		}
@@ -287,9 +293,13 @@ object CodeGenerator {
 	def genFunDecl(fd: FunDeclNode, c: Ctx): Seq[Quadruple] = {
 		val head = Seq(Quadruple(c.index, "func", fd.identifier, fd.returnType, fd.params.length.toString))
 		c.index += 1
-		val params = fd.params.flatMap(s => {
-			val ret = Seq(Quadruple(c.index, "param", "", "", s.identifier), Quadruple(c.index + 1, "alloc", "4", "", s.identifier))
-			c.index += 2
+		val params = fd.params.map(s => {
+			val ret = Quadruple(c.index, "param", "", "", s.identifier)
+			c.index += 1
+			ret
+		}) ++ fd.params.map(s => {
+			val ret = Quadruple(c.index, "alloc", "4", "", s.identifier)
+			c.index += 1
 			ret
 		})
 		val cps = genCompoundStatement(fd.body, c)
@@ -320,8 +330,8 @@ object CodeGenerator {
 		case fd: FunDeclNode => genFunDecl(fd, c)
 	}
 
-	def apply(root: ProgramNode): Seq[Quadruple] = {
-		val ctx = Ctx()
+	def apply(root: ProgramNode, s: SymTab): Seq[Quadruple] = {
+		val ctx = Ctx(s)
 		root.declarations.flatMap(s => genDeclaration(s, ctx))
 	}
 }

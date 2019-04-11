@@ -13,7 +13,7 @@ class SemAnalyzerIntegrationTest extends WordSpec {
 			pw.close()
 		}
 	}
-	def prettyPrint(res: Try[Unit]): Unit	= res match {case Failure(e: SemAnalyzerException) => e.prettyPrint(); case _ =>}
+	def prettyPrint(res: Try[SymTab]): Unit	= res match {case Failure(e: SemAnalyzerException) => e.prettyPrint(); case _ =>}
 	def mkLines(s: String): Seq[String] = s.trim.split("\n")
 
     val successCases: Seq[(String, Seq[String])] = Seq(

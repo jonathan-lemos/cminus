@@ -39,13 +39,13 @@ object Main extends App {
 			case Failure(e) => throw e
 		}
 
-		SemAnalyzer(tree) match {
-			case Success(_) =>
+		val symtab = SemAnalyzer(tree) match {
+			case Success(s) => s
 			case Failure(e: SemAnalyzerException) => e.prettyPrint(); return
 			case Failure(e) => throw e
 		}
 
-		val ir = CodeGenerator(tree)
+		val ir = CodeGenerator(tree, symtab)
 		ir.map(_.index).zip(1 to ir.length).foreach(s => if (s._1 != s._2) println(s"Mismatched index ${s._1}, ${s._2}"))
 		ir.foreach(println)
 		// Color.printGreen("Accept\n")

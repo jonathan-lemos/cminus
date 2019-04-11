@@ -21,7 +21,7 @@ class SemAnalyzerException(s: String, line: Int) extends IllegalArgumentExceptio
 	}
 }
 
-private final class SymTab {
+final class SymTab {
 	private val varList = new ListBuffer[mutable.HashMap[String, RegType]]
 	private val funcList = new mutable.HashMap[String, FuncType]
 	private var curRetType: Option[RegType] = None
@@ -284,10 +284,13 @@ object SemAnalyzer {
 		Success(())
 	}
 
-	def apply(root: ProgramNode): Try[Unit] = {
+	def apply(root: ProgramNode): Try[SymTab] = {
 		val symtab = new SymTab
 		symtab.add("input", FuncType("int", Seq()))
 		symtab.add("output", FuncType("void", Seq(ParamNode(0, "int", "x"))))
-		analyzeProgramNode(root, symtab)
+		analyzeProgramNode(root, symtab) match {
+			case Success(()) => Success(symtab)
+			case Failure(e) => return Failure(e)
+		}
 	}
 }

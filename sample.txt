@@ -1,13 +1,33 @@
-        int sub(int x) {
-          int y;
-          return (x + y);
-        }
-        void main(void) {
-          int x[8]; int y; int z; int w;
-          while (x[w] + y * z >= z * w) {
-            int p;
-            x[2] = p * z + w - p;
-          }
-          if (x[z] + 2 > y) y = x[0] * 5; else y = z - 1000;
-          x[4] = sub(w);
-        }
+int x(int y, float z) {
+	if (z * (1.0 + 2.0) > 2.0 * z) {
+		int q;
+		q = x(y, z - 1.0);
+		return q + 2;
+	}
+	return y + 4 * 2;
+}
+
+float y(float z) {
+	if (z / 2.0 > 4.0)
+		return z * 3.14;
+	else {
+		float tmp;
+		tmp = z;
+		while (tmp > 0.0)
+			tmp = tmp - y(z / 2.0);
+		return tmp;
+	}
+}
+
+void main(void) {
+	int a[5];
+	float b;
+	int c;
+
+	c = 2 > 1 * 1;
+	b = y(2.0);
+	a[0] = x(c, 5.0);
+	c = a[0];
+	a[c * 2] = x(4 * 2 + 1, b);
+	main();
+}

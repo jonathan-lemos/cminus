@@ -1,20 +1,28 @@
+float what[10];
+int glob;
+
 int x(int y, float z) {
-	if (z * (1.0 + 2.0) > 2.0 * z) {
+	2 + 2 == 4;
+	2 * 2;
+	2 + 2;
+	4;
+	;
+	if (z * (1.0 + 2.0) <= 3.14 / 9.99 - 6.28) {
 		int q;
-		q = x(y, z - 1.0);
-		return q + 2;
+		q = x(glob, what[y + 2 * 2] - 1.0);
+		return q + 3 * 4;
 	}
-	return y + 4 * 2;
+	return (y + 5) * 6;
 }
 
-float y(float z) {
-	if (z / 2.0 > 4.0)
-		return z * 3.14;
+float y(float z[]) {
+	if (z[2 + 2] / 2.0 > 4.0)
+		return z[0] * 3.14;
 	else {
 		float tmp;
-		tmp = z;
-		while (tmp > 0.0)
-			tmp = tmp - y(z / 2.0);
+		tmp = z[1];
+		while (tmp != 0.0)
+			tmp = tmp - y(z);
 		return tmp;
 	}
 }
@@ -25,9 +33,14 @@ void main(void) {
 	int c;
 
 	c = 2 > 1 * 1;
-	b = y(2.0);
-	a[0] = x(c, 5.0);
-	c = a[0];
-	a[c * 2] = x(4 * 2 + 1, b);
-	main();
+	b = y(what);
+	if (4) {
+		a[0] = x(c, 5.0);
+		c = a[0];
+	}
+	else a[c * 2] = x(4 * 2 + 1, b);
+	while (1 - 1) {
+		main();
+	}
+	return;
 }

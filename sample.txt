@@ -1,6 +1,10 @@
 float what[10];
 int glob;
 
+float tp(void) {
+	return 5.0;
+}
+
 int x(int y, float z) {
 	2 + 2 == 4;
 	2 * 2;
@@ -21,6 +25,7 @@ float y(float z[]) {
 	else {
 		float tmp;
 		tmp = z[1];
+		z[1] = 4.0;
 		while (tmp != 0.0)
 			tmp = tmp - y(z);
 		return tmp;
@@ -35,7 +40,7 @@ void main(void) {
 	c = 2 > 1 * 1;
 	b = y(what);
 	if (4) {
-		a[0] = x(c, 5.0);
+		a[0] = x(c, tp());
 		c = a[0];
 	}
 	else a[c * 2] = x(4 * 2 + 1, b);

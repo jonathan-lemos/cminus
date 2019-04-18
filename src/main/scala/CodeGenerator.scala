@@ -139,7 +139,7 @@ object CodeGenerator {
 				condition ++ cmp
 			case None =>
 				val tmp = c.genTmp
-				val cmp = Seq(Quadruple(c.index, "comp", tmpvar, "0", tmp), Quadruple(c.index + 1, "breq", tmpvar, "", jumpTo.toString))
+				val cmp = Seq(Quadruple(c.index, "comp", tmpvar, "0", tmp), Quadruple(c.index + 1, "breq", tmp, "", jumpTo.toString))
 				c.index += 2
 				condition ++ cmp
 		}
